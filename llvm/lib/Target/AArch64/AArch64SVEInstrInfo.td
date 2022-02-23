@@ -270,6 +270,9 @@ def AArch64ptest     : SDNode<"AArch64ISD::PTEST", SDT_AArch64PTest>;
 def SDT_AArch64DUP_PRED  : SDTypeProfile<1, 3, [SDTCisVec<0>, SDTCisSameAs<0, 3>, SDTCisVec<1>, SDTCVecEltisVT<1,i1>]>;
 def AArch64dup_mt : SDNode<"AArch64ISD::DUP_MERGE_PASSTHRU", SDT_AArch64DUP_PRED>;
 
+def SDT_AArch64FWUP_PRED : SDTypeProfile<1, 3, [SDTCisVec<0>, SDTCisSameAs<0, 3>, SDTCisVec<1>, SDTCVecEltisVT<1,i1>]>;
+def AArch64fwup_mt : SDNode<"AArch64ISD::FWUP_MERGE_PASSTHRU", SDT_AArch64FWUP_PRED>;
+
 def AArch64splice : SDNode<"AArch64ISD::SPLICE", SDT_AArch64Arith>;
 
 def reinterpret_cast : SDNode<"AArch64ISD::REINTERPRET_CAST", SDTUnaryOp>;
@@ -440,7 +443,7 @@ let Predicates = [HasSVEorStreamingSVE] in {
   defm FMINNM_ZPmI  : sve_fp_2op_i_p_zds<0b101, "fminnm", "FMINNM_ZPZI", sve_fpimm_zero_one, fpimm0, fpimm_one, int_aarch64_sve_fminnm>;
   defm FMAX_ZPmI    : sve_fp_2op_i_p_zds<0b110, "fmax", "FMAX_ZPZI", sve_fpimm_zero_one, fpimm0, fpimm_one, int_aarch64_sve_fmax>;
   defm FMIN_ZPmI    : sve_fp_2op_i_p_zds<0b111, "fmin", "FMIN_ZPZI", sve_fpimm_zero_one, fpimm0, fpimm_one, int_aarch64_sve_fmin>;
-   
+
   defm FADD_ZPZI    : sve_fp_2op_i_p_zds_hfd<sve_fpimm_half_one, fpimm_half, fpimm_one, AArch64fadd_p>;
   defm FSUB_ZPZI    : sve_fp_2op_i_p_zds_hfd<sve_fpimm_half_one, fpimm_half, fpimm_one, AArch64fsub_p>;
   defm FMUL_ZPZI    : sve_fp_2op_i_p_zds_hfd<sve_fpimm_half_two, fpimm_half, fpimm_two, AArch64fmul_p>;
@@ -619,6 +622,8 @@ let Predicates = [HasSVEorStreamingSVE] in {
   // Splat scalar register (predicated)
   defm CPY_ZPmR : sve_int_perm_cpy_r<"cpy", AArch64dup_mt>;
   defm CPY_ZPmV : sve_int_perm_cpy_v<"cpy", AArch64dup_mt>;
+
+  defm FWUP_ZPmR : sve_int_perm_fwup_r<"fwup", AArch64fwup_mt>;
 
   // Duplicate FP scalar into all vector elements
   def : Pat<(nxv8f16 (AArch64dup (f16 FPR16:$src))),
@@ -1688,7 +1693,7 @@ let Predicates = [HasSVEorStreamingSVE] in {
   def : Pat<(nxv2f16 (AArch64fcvtr_mt (nxv2i1 (SVEAllActive):$Pg), (nxv2f32 ZPR:$Zs), (i64 timm0_1), (nxv2f16 ZPR:$Zd))),
             (FCVT_ZPmZ_StoH_UNDEF ZPR:$Zd, PPR:$Pg, ZPR:$Zs)>;
 
-  // Signed integer -> Floating-point 
+  // Signed integer -> Floating-point
   def : Pat<(nxv2f16 (AArch64scvtf_mt (nxv2i1 (SVEAllActive):$Pg),
                       (sext_inreg (nxv2i64 ZPR:$Zs), nxv2i16), (nxv2f16 ZPR:$Zd))),
             (SCVTF_ZPmZ_HtoH_UNDEF ZPR:$Zd, PPR:$Pg, ZPR:$Zs)>;

@@ -2270,6 +2270,7 @@ const char *AArch64TargetLowering::getTargetNodeName(unsigned Opcode) const {
     MAKE_CASE(AArch64ISD::CTLZ_MERGE_PASSTHRU)
     MAKE_CASE(AArch64ISD::CTPOP_MERGE_PASSTHRU)
     MAKE_CASE(AArch64ISD::DUP_MERGE_PASSTHRU)
+    MAKE_CASE(AArch64ISD::FWUP_MERGE_PASSTHRU)
     MAKE_CASE(AArch64ISD::INDEX_VECTOR)
     MAKE_CASE(AArch64ISD::UADDLP)
     MAKE_CASE(AArch64ISD::CALL_RVMARKER)
@@ -14976,6 +14977,20 @@ static SDValue LowerSVEIntrinsicIndex(SDNode *N, SelectionDAG &DAG) {
   return DAG.getNode(ISD::ADD, DL, N->getValueType(0), Mul, Base);
 }
 
+static SDValue LowerSVEIntrinsicFWUP(SDNode *N, SelectionDAG &DAG) {
+  SDLoc dl(N);
+  SDValue Scalar = N->getOperand(3);
+
+  EVT ScalarTy = Scalar.getValueType();
+  if ((ScalarTy == MVT::i8) || (ScalarTy == MVT::i16))
+    Scalar = DAG.getNode(ISD::ANY_EXTEND, dl, MVT::i32, Scalar);
+
+  SDValue Passthru = N->getOperand(1);
+  SDValue Pred = N->getOperand(2);
+  return DAG.getNode(AArch64ISD::FWUP_MERGE_PASSTHRU, dl, N->getValueType(0),
+                     Pred, Scalar, Passthru);
+}
+
 static SDValue LowerSVEIntrinsicDUP(SDNode *N, SelectionDAG &DAG) {
   SDLoc dl(N);
   SDValue Scalar = N->getOperand(3);
@@ -15310,6 +15325,8 @@ static SDValue performIntrinsicCombine(SDNode *N,
     return combineSVEReductionInt(N, AArch64ISD::ANDV_PRED, DAG);
   case Intrinsic::aarch64_sve_index:
     return LowerSVEIntrinsicIndex(N, DAG);
+  case Intrinsic::aarch64_sve_fwup:
+    return LowerSVEIntrinsicFWUP(N, DAG);
   case Intrinsic::aarch64_sve_dup:
     return LowerSVEIntrinsicDUP(N, DAG);
   case Intrinsic::aarch64_sve_dup_x:

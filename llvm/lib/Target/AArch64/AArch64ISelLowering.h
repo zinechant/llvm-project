@@ -331,6 +331,7 @@ enum NodeType : unsigned {
   CTLZ_MERGE_PASSTHRU,
   CTPOP_MERGE_PASSTHRU,
   DUP_MERGE_PASSTHRU,
+  FWUP_MERGE_PASSTHRU,
   INDEX_VECTOR,
 
   // Cast between vectors of the same element type but differ in length.

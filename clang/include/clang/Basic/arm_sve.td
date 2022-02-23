@@ -743,6 +743,9 @@ defm SVDUP_M : svdup_base<"svdup[_n]_{d}", "ddPs", MergeOp1,     "aarch64_sve_du
 defm SVDUP_X : svdup_base<"svdup[_n]_{d}", "dPs",  MergeAnyExp,  "aarch64_sve_dup">;
 defm SVDUP_Z : svdup_base<"svdup[_n]_{d}", "dPs",  MergeZeroExp, "aarch64_sve_dup">;
 
+def SVFWUP_X : SInst<"svfwup_{d}", "dPk", "csil", MergeAnyExp, "aarch64_sve_fwup">;
+def SVFWUP_Z : SInst<"svfwup_{d}", "dPk", "csil", MergeZeroExp, "aarch64_sve_fwup">;
+
 def SVINDEX : SInst<"svindex_{d}",   "dss",  "csilUcUsUiUl",    MergeNone,    "aarch64_sve_index">;
 
 // Integer arithmetic
