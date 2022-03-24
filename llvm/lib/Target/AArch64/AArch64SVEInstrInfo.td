@@ -691,7 +691,7 @@ let Predicates = [HasSVE] in {
 
 
 def SDT_AArch64UNPACK   : SDTypeProfile<1, 1, [SDTCisVec<0>, SDTCisInt<1>]>;
-def SDT_AArch64PACK     : SDTypeProfile<0, 3, [SDTCisVec<0>, SDTCisVec<1>, SDTCVecEltisVT<1,i1>, SDTCisVec<2>]>;
+def SDT_AArch64PACK     : SDTypeProfile<0, 3, [SDTCisVec<0>, SDTCisVec<1>, SDTCVecEltisVT<1,i1>, SDTCisInt<2>]>;
 def SDT_AArch64FRSTREAM : SDTypeProfile<1, 3, [SDTCisInt<0>, SDTCisPtrTy<1>, SDTCisInt<2>, SDTCisInt<3>]>;
 def SDT_AArch64VRSTREAM : SDTypeProfile<1, 3, [SDTCisInt<0>, SDTCisPtrTy<1>, SDTCisInt<2>, SDTCisPtrTy<3>]>;
 def SDT_AArch64FWSTREAM : SDTypeProfile<1, 2, [SDTCisInt<0>, SDTCisPtrTy<1>, SDTCisInt<2>]>;
@@ -711,7 +711,7 @@ def AArch64ewstream : SDNode<"AArch64ISD::EWSTREAM", SDT_AArch64ESTREAM, [SDNPHa
 
 let Predicates = [HasSVEorStreamingSVE] in {
   defm UNPACK_ZR    : sve_int_perm_unpack<"unpack", AArch64unpack  >;
-  // defm PACK_ZPR     : sve_int_bin_pred_pack<"pack", AArch64pack    >;
+  defm PACK_ZPR     : sve_int_bin_pred_pack<"pack", AArch64pack    >;
   def FRSTREAM_RRRR : RStream3Op<0b010, GPR32sp, "frstream", AArch64frstream>;
   def CRSTREAM_RRRR : RStream3Op<0b101, GPR32sp, "crstream", AArch64crstream>;
   def VRSTREAM_RRRR : RStream3Op<0b110, GPR64sp, "vrstream", AArch64vrstream>;

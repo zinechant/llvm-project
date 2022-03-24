@@ -1452,76 +1452,36 @@ multiclass sve_int_perm_unpack<string asm, SDPatternOperator op> {
   def : SVE_1_Op_Pat<nxv2i64, op, i32, !cast<Instruction>(NAME # _D)>;
 }
 
-// class SVE_1_Op_Pat<ValueType vtd, SDPatternOperator op, ValueType vt1,
-//                    Instruction inst>
-// : Pat<(vtd (op vt1:$Op1)),
-//       (inst $Op1)>;
+class sve_int_bin_pred_pack<bits<2> sz8_64, string asm, ZPRRegOp zprty>
+: I<(outs), (ins zprty:$Zm, PPR3bAny:$Pg, GPR32sp:$Zn),
+  asm, "\t$Pg/m, $Zm, $Zn", "", []>, Sched<[]> {
+  bits<3> Pg;
+  bits<5> Zdn;
+  bits<5> Zm;
+  let Inst{31-24} = 0b00000100;
+  let Inst{23-22} = sz8_64;
+  let Inst{21-19} = 0b000;
+  let Inst{18-16} = 0b010;
+  let Inst{15-13} = 0b000;
+  let Inst{12-10} = Pg;
+  let Inst{9-5}   = Zm;
+  let Inst{4-0}   = Zdn;
 
-// class I<dag oops, dag iops, string asm, string operands, string cstr,
-//         list<dag> pattern>
-//     : EncodedI<cstr, pattern> {
-//   dag OutOperandList = oops;
-//   dag InOperandList  = iops;
-//   let AsmString      = !strconcat(asm, operands);
-// }
+  let hasSideEffects = 1;
+}
 
-// multiclass pred_store<ValueType Ty, ValueType PredTy, SDPatternOperator Store,
-//                       Instruction RegRegInst, Instruction RegImmInst, ComplexPattern AddrCP> {
-//   let AddedComplexity = 1 in {
-//     def _reg_reg : Pat<(Store (Ty ZPR:$vec), (AddrCP GPR64:$base, GPR64:$offset), (PredTy PPR:$gp)),
-//                        (RegRegInst ZPR:$vec, PPR:$gp, GPR64:$base, GPR64:$offset)>;
-//   }
-//   let AddedComplexity = 2 in {
-//     def _reg_imm : Pat<(Store (Ty ZPR:$vec), (am_sve_indexed_s4 GPR64sp:$base, simm4s1:$offset), (PredTy PPR:$gp)),
-//                        (RegImmInst ZPR:$vec, PPR:$gp, GPR64:$base, simm4s1:$offset)>;
-//   }
-//   def _default : Pat<(Store (Ty ZPR:$vec), GPR64:$base, (PredTy PPR:$gp)),
-//                      (RegImmInst ZPR:$vec, PPR:$gp, GPR64:$base, (i64 0))>;
-// }
-
-// class SVE_2_Op_Pat<ValueType vtd, SDPatternOperator op, ValueType vt1,
-//                    ValueType vt2, Instruction inst>
-// : Pat<(vtd (op vt1:$Op1, vt2:$Op2)),
-//       (inst $Op1, $Op2)>;
-
-// class SVE_3_Op_Pat<ValueType vtd, SDPatternOperator op, ValueType vt1,
-//                    ValueType vt2, ValueType vt3, Instruction inst>
-// : Pat<(vtd (op vt1:$Op1, vt2:$Op2, vt3:$Op3)),
-//       (inst $Op1, $Op2, $Op3)>;
-
-// class sve_int_bin_pred_pack<bits<2> sz8_64, string asm, ZPRRegOp zprty,
-//                             RegisterClass srcRegType>
-// : I<(outs), (ins zprty:$Zm, PPR3bAny:$Pg, srcRegType:$Zn),
-//   asm, "\t$Pg/m, $Zm, $Zn", "", []>, Sched<[]> {
-//   bits<3> Pg;
-//   bits<5> Zdn;
-//   bits<5> Zm;
-//   let Inst{31-24} = 0b00000100;
-//   let Inst{23-22} = sz8_64;
-//   let Inst{21-19} = 0b000;
-//   let Inst{18-16} = 0b010;
-//   let Inst{15-13} = 0b000;
-//   let Inst{12-10} = Pg;
-//   let Inst{9-5}   = Zm;
-//   let Inst{4-0}   = Zdn;
-
-//   let hasSideEffects = 1;
-//   let Uses = [FFR];
-// }
-
-// multiclass sve_int_bin_pred_pack<string asm, SDPatternOperator op> {
-//   def _B : sve_int_bin_pred_pack<0b00, asm, ZPR8,  GPR32sp>;
-//   def _H : sve_int_bin_pred_pack<0b01, asm, ZPR16, GPR32sp>;
-//   def _S : sve_int_bin_pred_pack<0b10, asm, ZPR32, GPR32sp>;
-//   def _D : sve_int_bin_pred_pack<0b11, asm, ZPR64, GPR32sp>;
+multiclass sve_int_bin_pred_pack<string asm, SDPatternOperator op> {
+  def _B : sve_int_bin_pred_pack<0b00, asm, ZPR8>;
+  def _H : sve_int_bin_pred_pack<0b01, asm, ZPR16>;
+  def _S : sve_int_bin_pred_pack<0b10, asm, ZPR32>;
+  def _D : sve_int_bin_pred_pack<0b11, asm, ZPR64>;
 
 
-//   def : Pat<(op nxv16i8:$Op1, nxv16i1:$Op2, i32:$Op3), (!cast<Instruction>(NAME # _B) nxv16i8:$Op1, nxv16i1:$Op2, i32:$Op3)>;
-//   def : Pat<(op nxv8i16:$Op1, nxv8i1:$Op2,  i32:$Op3), (!cast<Instruction>(NAME # _H) nxv8i16:$Op1, nxv8i1:$Op2,  i32:$Op3)>;
-//   def : Pat<(op nxv4i32:$Op1, nxv4i1:$Op2,  i32:$Op3), (!cast<Instruction>(NAME # _S) nxv4i32:$Op1, nxv4i1:$Op2,  i32:$Op3)>;
-//   def : Pat<(op nxv2i64:$Op1, nxv2i1:$Op2,  i32:$Op3), (!cast<Instruction>(NAME # _D) nxv2i64:$Op1, nxv2i1:$Op2,  i32:$Op3)>;
-// }
-
+  def : Pat<(op nxv16i8:$Op1, nxv16i1:$Op2, i32:$Op3), (!cast<Instruction>(NAME # _B) nxv16i8:$Op1, nxv16i1:$Op2, i32:$Op3)>;
+  def : Pat<(op nxv8i16:$Op1, nxv8i1:$Op2,  i32:$Op3), (!cast<Instruction>(NAME # _H) nxv8i16:$Op1, nxv8i1:$Op2,  i32:$Op3)>;
+  def : Pat<(op nxv4i32:$Op1, nxv4i1:$Op2,  i32:$Op3), (!cast<Instruction>(NAME # _S) nxv4i32:$Op1, nxv4i1:$Op2,  i32:$Op3)>;
+  def : Pat<(op nxv2i64:$Op1, nxv2i1:$Op2,  i32:$Op3), (!cast<Instruction>(NAME # _D) nxv2i64:$Op1, nxv2i1:$Op2,  i32:$Op3)>;
+}
 
 class RStream3Op<bits<3> opc, RegisterClass bwtype, string asm, SDPatternOperator OpNode>
   : I<(outs GPR32sp:$Rd), (ins GPR64sp:$Rn, GPR64sp:$Rm, bwtype:$Ra),
