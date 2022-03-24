@@ -6193,6 +6193,12 @@ static const ARMVectorIntrinsicInfo AArch64SIMDIntrinsicMap[] = {
 };
 
 static const ARMVectorIntrinsicInfo AArch64SISDIntrinsicMap[] = {
+  NEONMAP1(crstream_s32, aarch64_crstream, 0),
+  NEONMAP1(cwstream_s32, aarch64_cwstream, 0),
+  NEONMAP1(erstream_s32, aarch64_erstream, 0),
+  NEONMAP1(ewstream_s32, aarch64_ewstream, 0),
+  NEONMAP1(frstream_s32, aarch64_frstream, 0),
+  NEONMAP1(fwstream_s32, aarch64_fwstream, 0),
   NEONMAP1(vabdd_f64, aarch64_sisd_fabd, Add1ArgType),
   NEONMAP1(vabds_f32, aarch64_sisd_fabd, Add1ArgType),
   NEONMAP1(vabsd_s64, aarch64_neon_abs, Add1ArgType),
@@ -6376,6 +6382,7 @@ static const ARMVectorIntrinsicInfo AArch64SISDIntrinsicMap[] = {
   NEONMAP1(vrsqrtes_f32, aarch64_neon_frsqrte, Add1ArgType),
   NEONMAP1(vrsqrtsd_f64, aarch64_neon_frsqrts, Add1ArgType),
   NEONMAP1(vrsqrtss_f32, aarch64_neon_frsqrts, Add1ArgType),
+  NEONMAP1(vrstream_s32, aarch64_vrstream, 0),
   NEONMAP1(vsha1cq_u32, aarch64_crypto_sha1c, 0),
   NEONMAP1(vsha1h_u32, aarch64_crypto_sha1h, 0),
   NEONMAP1(vsha1mq_u32, aarch64_crypto_sha1m, 0),
@@ -6394,6 +6401,7 @@ static const ARMVectorIntrinsicInfo AArch64SISDIntrinsicMap[] = {
   NEONMAP1(vuqaddd_s64, aarch64_neon_suqadd, Add1ArgType),
   NEONMAP1(vuqaddh_s16, aarch64_neon_suqadd, Vectorize1ArgType | Use64BitVectors),
   NEONMAP1(vuqadds_s32, aarch64_neon_suqadd, Add1ArgType),
+  NEONMAP1(vwstream_s32, aarch64_vwstream, 0),
   // FP16 scalar intrinisics go here.
   NEONMAP1(vabdh_f16, aarch64_sisd_fabd, Add1ArgType),
   NEONMAP1(vcvtah_s32_f16, aarch64_neon_fcvtas, AddRetType | Add1ArgType),

@@ -270,9 +270,6 @@ def AArch64ptest     : SDNode<"AArch64ISD::PTEST", SDT_AArch64PTest>;
 def SDT_AArch64DUP_PRED  : SDTypeProfile<1, 3, [SDTCisVec<0>, SDTCisSameAs<0, 3>, SDTCisVec<1>, SDTCVecEltisVT<1,i1>]>;
 def AArch64dup_mt : SDNode<"AArch64ISD::DUP_MERGE_PASSTHRU", SDT_AArch64DUP_PRED>;
 
-def SDT_AArch64FWUP_PRED : SDTypeProfile<1, 3, [SDTCisVec<0>, SDTCisSameAs<0, 3>, SDTCisVec<1>, SDTCVecEltisVT<1,i1>]>;
-def AArch64fwup_mt : SDNode<"AArch64ISD::FWUP_MERGE_PASSTHRU", SDT_AArch64FWUP_PRED>;
-
 def AArch64splice : SDNode<"AArch64ISD::SPLICE", SDT_AArch64Arith>;
 
 def reinterpret_cast : SDNode<"AArch64ISD::REINTERPRET_CAST", SDTUnaryOp>;
@@ -623,8 +620,6 @@ let Predicates = [HasSVEorStreamingSVE] in {
   defm CPY_ZPmR : sve_int_perm_cpy_r<"cpy", AArch64dup_mt>;
   defm CPY_ZPmV : sve_int_perm_cpy_v<"cpy", AArch64dup_mt>;
 
-  defm FWUP_ZPmR : sve_int_perm_fwup_r<"fwup", AArch64fwup_mt>;
-
   // Duplicate FP scalar into all vector elements
   def : Pat<(nxv8f16 (AArch64dup (f16 FPR16:$src))),
             (DUP_ZZI_H (INSERT_SUBREG (IMPLICIT_DEF), FPR16:$src, hsub), 0)>;
@@ -694,7 +689,38 @@ let Predicates = [HasSVE] in {
   defm COMPACT_ZPZ : sve_int_perm_compact<"compact", int_aarch64_sve_compact>;
 } // End HasSVE
 
+
+def SDT_AArch64UNPACK   : SDTypeProfile<1, 1, [SDTCisVec<0>, SDTCisInt<1>]>;
+def SDT_AArch64PACK     : SDTypeProfile<0, 3, [SDTCisVec<0>, SDTCisVec<1>, SDTCVecEltisVT<1,i1>, SDTCisVec<2>]>;
+def SDT_AArch64FRSTREAM : SDTypeProfile<1, 3, [SDTCisInt<0>, SDTCisPtrTy<1>, SDTCisInt<2>, SDTCisInt<3>]>;
+def SDT_AArch64VRSTREAM : SDTypeProfile<1, 3, [SDTCisInt<0>, SDTCisPtrTy<1>, SDTCisInt<2>, SDTCisPtrTy<3>]>;
+def SDT_AArch64FWSTREAM : SDTypeProfile<1, 2, [SDTCisInt<0>, SDTCisPtrTy<1>, SDTCisInt<2>]>;
+def SDT_AArch64VWSTREAM : SDTypeProfile<1, 2, [SDTCisInt<0>, SDTCisPtrTy<1>, SDTCisPtrTy<2>]>;
+def SDT_AArch64ESTREAM  : SDTypeProfile<1, 1, [SDTCisInt<0>, SDTCisInt<1>]>;
+
+def AArch64unpack   : SDNode<"AArch64ISD::UNPACK",   SDT_AArch64UNPACK, [SDNPHasChain]>;
+def AArch64pack     : SDNode<"AArch64ISD::PACK",     SDT_AArch64PACK, [SDNPHasChain]>;
+def AArch64frstream : SDNode<"AArch64ISD::FRSTREAM", SDT_AArch64FRSTREAM, [SDNPHasChain]>;
+def AArch64crstream : SDNode<"AArch64ISD::CRSTREAM", SDT_AArch64FRSTREAM, [SDNPHasChain]>;
+def AArch64vrstream : SDNode<"AArch64ISD::VRSTREAM", SDT_AArch64VRSTREAM, [SDNPHasChain]>;
+def AArch64fwstream : SDNode<"AArch64ISD::FWSTREAM", SDT_AArch64FWSTREAM, [SDNPHasChain]>;
+def AArch64cwstream : SDNode<"AArch64ISD::CWSTREAM", SDT_AArch64FWSTREAM, [SDNPHasChain]>;
+def AArch64vwstream : SDNode<"AArch64ISD::VWSTREAM", SDT_AArch64VWSTREAM, [SDNPHasChain]>;
+def AArch64erstream : SDNode<"AArch64ISD::ERSTREAM", SDT_AArch64ESTREAM, [SDNPHasChain]>;
+def AArch64ewstream : SDNode<"AArch64ISD::EWSTREAM", SDT_AArch64ESTREAM, [SDNPHasChain]>;
+
 let Predicates = [HasSVEorStreamingSVE] in {
+  defm UNPACK_ZR    : sve_int_perm_unpack<"unpack", AArch64unpack  >;
+  // defm PACK_ZPR     : sve_int_bin_pred_pack<"pack", AArch64pack    >;
+  def FRSTREAM_RRRR : RStream3Op<0b010, GPR32sp, "frstream", AArch64frstream>;
+  def CRSTREAM_RRRR : RStream3Op<0b101, GPR32sp, "crstream", AArch64crstream>;
+  def VRSTREAM_RRRR : RStream3Op<0b110, GPR64sp, "vrstream", AArch64vrstream>;
+  def FWSTREAM_RRR  : WStream2Op<0b00,  GPR32sp, "fwstream", AArch64fwstream>;
+  def CWSTREAM_RRR  : WStream2Op<0b01,  GPR32sp, "cwstream", AArch64cwstream>;
+  def VWSTREAM_RRR  : WStream2Op<0b10,  GPR64sp, "vwstream", AArch64vwstream>;
+  def ERSTREAM_RR   : EStream1Op<0b0,            "erstream", AArch64erstream>;
+  def EWSTREAM_RR   : EStream1Op<0b1,            "ewstream", AArch64ewstream>;
+
   defm INSR_ZR : sve_int_perm_insrs<"insr", AArch64insr>;
   defm INSR_ZV : sve_int_perm_insrv<"insr", AArch64insr>;
   defm EXT_ZZI : sve_int_perm_extract_i<"ext", AArch64ext>;

@@ -300,6 +300,15 @@ let ArchGuard = "defined(__ARM_FEATURE_BF16_VECTOR_ARITHMETIC)" in {
 // Intrinsics
 //===----------------------------------------------------------------------===//
 
+def FRSTREAM : Inst<"frstream", "1*(1>)1", "i", OP_NONE>;
+def CRSTREAM : Inst<"crstream", "1*(1>)1", "i", OP_NONE>;
+def VRSTREAM : Inst<"vrstream", "1*(1>)*", "i", OP_NONE>;
+def FWSTREAM : Inst<"fwstream", "1*1",  "i", OP_NONE>;
+def CWSTREAM : Inst<"cwstream", "1*1",  "i", OP_NONE>;
+def VWSTREAM : Inst<"vwstream", "1**",  "i", OP_NONE>;
+def ERSTREAM : Inst<"erstream", "(1>)1",   "i", OP_NONE>;
+def EWSTREAM : Inst<"ewstream", "(1>)1",   "i", OP_NONE>;
+
 ////////////////////////////////////////////////////////////////////////////////
 // E.3.1 Addition
 def VADD    : IOpInst<"vadd", "...",

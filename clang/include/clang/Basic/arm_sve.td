@@ -743,10 +743,30 @@ defm SVDUP_M : svdup_base<"svdup[_n]_{d}", "ddPs", MergeOp1,     "aarch64_sve_du
 defm SVDUP_X : svdup_base<"svdup[_n]_{d}", "dPs",  MergeAnyExp,  "aarch64_sve_dup">;
 defm SVDUP_Z : svdup_base<"svdup[_n]_{d}", "dPs",  MergeZeroExp, "aarch64_sve_dup">;
 
-def SVFWUP_X : SInst<"svfwup_{d}", "dPk", "csil", MergeAnyExp, "aarch64_sve_fwup">;
-def SVFWUP_Z : SInst<"svfwup_{d}", "dPk", "csil", MergeZeroExp, "aarch64_sve_fwup">;
-
 def SVINDEX : SInst<"svindex_{d}",   "dss",  "csilUcUsUiUl",    MergeNone,    "aarch64_sve_index">;
+
+def SVUNPACK   : SInst<"svunpack_{d}", "dk", "csil", MergeNone, "aarch64_sve_unpack">;
+def SVPACK     : SInst<"svpack_{d}", "vdPk", "csil", MergeNone, "aarch64_sve_pack">;
+
+// class Inst<string n, string p, string t, MergeType mt, string i,
+//            list<FlagType> ft, list<ImmCheck> ch, MemEltType met> {
+//   string Name = n;
+//   string Prototype = p;
+//   string Types = t;
+//   string ArchGuard = "";
+//   int Merge = mt.Value;
+//   string MergeSuffix = mt.Suffix;
+//   string LLVMIntrinsic = i;
+//   list<FlagType> Flags = ft;
+//   list<ImmCheck> ImmChecks = ch;
+//   int MemEltType = met.Value;
+// }
+
+// // SInst: Instruction with signed/unsigned suffix (e.g., "s8", "u8")
+// class SInst<string n, string p, string t, MergeType mt, string i = "",
+//             list<FlagType> ft = [], list<ImmCheck> ch = []>
+//     : Inst<n, p, t, mt, i, ft, ch, MemEltTyDefault> {
+// }
 
 // Integer arithmetic
 
