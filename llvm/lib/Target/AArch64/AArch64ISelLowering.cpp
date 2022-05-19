@@ -975,6 +975,8 @@ AArch64TargetLowering::AArch64TargetLowering(const TargetMachine &TM,
 
   setHasExtractBitsInsn(true);
 
+  setOperationAction(ISD::INTRINSIC_VOID, MVT::Other, Custom);
+  setOperationAction(ISD::INTRINSIC_W_CHAIN, MVT::Other, Custom);
   setOperationAction(ISD::INTRINSIC_WO_CHAIN, MVT::Other, Custom);
 
   if (Subtarget->hasNEON()) {
@@ -2270,6 +2272,16 @@ const char *AArch64TargetLowering::getTargetNodeName(unsigned Opcode) const {
     MAKE_CASE(AArch64ISD::CTLZ_MERGE_PASSTHRU)
     MAKE_CASE(AArch64ISD::CTPOP_MERGE_PASSTHRU)
     MAKE_CASE(AArch64ISD::DUP_MERGE_PASSTHRU)
+    MAKE_CASE(AArch64ISD::UNPACK)
+    MAKE_CASE(AArch64ISD::PACK)
+    MAKE_CASE(AArch64ISD::FRSTREAM)
+    MAKE_CASE(AArch64ISD::CRSTREAM)
+    MAKE_CASE(AArch64ISD::VRSTREAM)
+    MAKE_CASE(AArch64ISD::FWSTREAM)
+    MAKE_CASE(AArch64ISD::CWSTREAM)
+    MAKE_CASE(AArch64ISD::VWSTREAM)
+    MAKE_CASE(AArch64ISD::ERSTREAM)
+    MAKE_CASE(AArch64ISD::EWSTREAM)
     MAKE_CASE(AArch64ISD::INDEX_VECTOR)
     MAKE_CASE(AArch64ISD::UADDLP)
     MAKE_CASE(AArch64ISD::CALL_RVMARKER)
@@ -4040,6 +4052,38 @@ static inline SDValue getPTrue(SelectionDAG &DAG, SDLoc DL, EVT VT,
                      DAG.getTargetConstant(Pattern, DL, MVT::i32));
 }
 
+static SDValue LowerPUP(SDValue Op, SelectionDAG &DAG, AArch64ISD::NodeType nt,
+                        unsigned args) {
+  SDLoc DL(Op);
+  assert(Op.getNode()->getNumValues() == 2);
+  assert(Op.getNumOperands() == args + 2);
+
+  SDVTList VTs = DAG.getVTList(Op->getValueType(0), MVT::Other);
+
+  switch (args) {
+    case 1: return DAG.getNode(nt, DL, VTs, {Op.getOperand(0),
+                                             Op.getOperand(2)});
+    case 2: return DAG.getNode(nt, DL, VTs, {Op.getOperand(0),
+                                             Op.getOperand(2),
+                                             Op.getOperand(3)});
+    case 3: return DAG.getNode(nt, DL, VTs, {Op.getOperand(0),
+                                             Op.getOperand(2),
+                                             Op.getOperand(3),
+                                             Op.getOperand(4)});
+  }
+  assert(false);
+  return SDValue();
+}
+
+static SDValue LowerPUPPack(SDValue Op, SelectionDAG &DAG) {
+  SDLoc DL(Op);
+  assert(Op.getNode()->getNumValues() == 1);
+  assert(Op.getNumOperands() == 5);
+
+  return DAG.getNode(AArch64ISD::PACK, DL, MVT::Other, {
+    Op.getOperand(0), Op.getOperand(2), Op.getOperand(3), Op.getOperand(4)});
+}
+
 static SDValue lowerConvertToSVBool(SDValue Op, SelectionDAG &DAG) {
   SDLoc DL(Op);
   EVT OutVT = Op.getValueType();
@@ -4077,6 +4121,28 @@ SDValue AArch64TargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
   switch (IntNo) {
   default:
     return SDValue(); // Don't custom lower most intrinsics.
+
+  case Intrinsic::aarch64_sve_unpack:
+    return LowerPUP(Op, DAG, AArch64ISD::UNPACK,   1);
+  case Intrinsic::aarch64_sve_pack:
+    return LowerPUPPack(Op, DAG);
+  case Intrinsic::aarch64_frstream:
+    return LowerPUP(Op, DAG, AArch64ISD::FRSTREAM, 3);
+  case Intrinsic::aarch64_crstream:
+    return LowerPUP(Op, DAG, AArch64ISD::CRSTREAM, 3);
+  case Intrinsic::aarch64_vrstream:
+    return LowerPUP(Op, DAG, AArch64ISD::VRSTREAM, 3);
+  case Intrinsic::aarch64_fwstream:
+    return LowerPUP(Op, DAG, AArch64ISD::FWSTREAM, 2);
+  case Intrinsic::aarch64_cwstream:
+    return LowerPUP(Op, DAG, AArch64ISD::CRSTREAM, 2);
+  case Intrinsic::aarch64_vwstream:
+    return LowerPUP(Op, DAG, AArch64ISD::VWSTREAM, 2);
+  case Intrinsic::aarch64_erstream:
+    return LowerPUP(Op, DAG, AArch64ISD::ERSTREAM, 1);
+  case Intrinsic::aarch64_ewstream:
+    return LowerPUP(Op, DAG, AArch64ISD::EWSTREAM, 1);
+
   case Intrinsic::aarch64_mops_memset_tag: {
     auto Node = cast<MemIntrinsicSDNode>(Op.getNode());
     SDLoc DL(Op);
@@ -5171,6 +5237,7 @@ SDValue AArch64TargetLowering::LowerOperation(SDValue Op,
   case ISD::MULHU:
     return LowerToPredicatedOp(Op, DAG, AArch64ISD::MULHU_PRED,
                                /*OverrideNEON=*/true);
+  case ISD::INTRINSIC_VOID:
   case ISD::INTRINSIC_W_CHAIN:
     return LowerINTRINSIC_W_CHAIN(Op, DAG);
   case ISD::INTRINSIC_WO_CHAIN:

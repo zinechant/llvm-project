@@ -1028,6 +1028,41 @@ let TargetPrefix = "aarch64" in {  // All intrinsics start with "llvm.aarch64.".
                    LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>, LLVMPointerToElt<0>],
                   [IntrArgMemOnly, NoCapture<ArgIndex<5>>]>;
 
+  class AdvSIMD_SVE_ScalarFFR_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                [llvm_i32_ty],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_SVE_ScalarPredicate_Intrinsic
+    : DefaultAttrsIntrinsic<[],
+                [llvm_anyvector_ty, LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>, llvm_i32_ty],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_FRStream_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_i32_ty],
+                [llvm_ptr_ty, llvm_i64_ty, llvm_i32_ty],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_VRStream_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_i32_ty],
+                [llvm_ptr_ty, llvm_i64_ty, llvm_ptr_ty],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_FWStream_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_i32_ty],
+                [llvm_ptr_ty, llvm_i32_ty],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_VWStream_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_i32_ty],
+                [llvm_ptr_ty, llvm_ptr_ty],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_EndStream_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_i64_ty],
+                [llvm_i32_ty],
+                [IntrInaccessibleMemOnly]>;
+
   class AdvSIMD_SVE_Index_Intrinsic
     : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
                 [LLVMVectorElementType<0>,
@@ -1631,6 +1666,17 @@ def int_aarch64_sve_prfd_gather_scalar_offset : SVE_gather_prf_VS;
 
 def int_aarch64_sve_dup : AdvSIMD_SVE_DUP_Intrinsic;
 def int_aarch64_sve_dup_x : AdvSIMD_SVE_DUP_Unpred_Intrinsic;
+
+def int_aarch64_sve_unpack : AdvSIMD_SVE_ScalarFFR_Intrinsic;
+def int_aarch64_sve_pack   : AdvSIMD_SVE_ScalarPredicate_Intrinsic;
+def int_aarch64_frstream   : AdvSIMD_FRStream_Intrinsic;
+def int_aarch64_crstream   : AdvSIMD_FRStream_Intrinsic;
+def int_aarch64_vrstream   : AdvSIMD_VRStream_Intrinsic;
+def int_aarch64_fwstream   : AdvSIMD_FWStream_Intrinsic;
+def int_aarch64_cwstream   : AdvSIMD_FWStream_Intrinsic;
+def int_aarch64_vwstream   : AdvSIMD_VWStream_Intrinsic;
+def int_aarch64_erstream   : AdvSIMD_EndStream_Intrinsic;
+def int_aarch64_ewstream   : AdvSIMD_EndStream_Intrinsic;
 
 def int_aarch64_sve_index : AdvSIMD_SVE_Index_Intrinsic;
 

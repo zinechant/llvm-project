@@ -1423,6 +1423,119 @@ multiclass sve_int_perm_unpk<bits<2> opc, string asm, SDPatternOperator op> {
   def : SVE_1_Op_Pat<nxv2i64, op, nxv4i32, !cast<Instruction>(NAME # _D)>;
 }
 
+class sve_int_perm_unpack<bits<2> sz8_64, string asm, ZPRRegOp zprty,
+                         RegisterClass srcRegType>
+: I<(outs zprty:$Zd), (ins srcRegType:$Rn),
+  asm, "\t$Zd, $Rn",
+  "", []>, Sched<[]> {
+  bits<5> Rn;
+  bits<5> Zd;
+  let Inst{31-24} = 0b00000101;
+  let Inst{23-22} = sz8_64;
+  let Inst{21-10} = 0b100110001110;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Zd;
+
+  let hasSideEffects = 1;
+  let Defs = [FFR];
+}
+
+multiclass sve_int_perm_unpack<string asm, SDPatternOperator op> {
+  def _B : sve_int_perm_unpack<0b00, asm, ZPR8,  GPR32sp>;
+  def _H : sve_int_perm_unpack<0b01, asm, ZPR16, GPR32sp>;
+  def _S : sve_int_perm_unpack<0b10, asm, ZPR32, GPR32sp>;
+  def _D : sve_int_perm_unpack<0b11, asm, ZPR64, GPR32sp>;
+
+  def : SVE_1_Op_Pat<nxv16i8, op, i32, !cast<Instruction>(NAME # _B)>;
+  def : SVE_1_Op_Pat<nxv8i16, op, i32, !cast<Instruction>(NAME # _H)>;
+  def : SVE_1_Op_Pat<nxv4i32, op, i32, !cast<Instruction>(NAME # _S)>;
+  def : SVE_1_Op_Pat<nxv2i64, op, i32, !cast<Instruction>(NAME # _D)>;
+}
+
+class sve_int_bin_pred_pack<bits<2> sz8_64, string asm, ZPRRegOp zprty>
+: I<(outs), (ins zprty:$Zm, PPR3bAny:$Pg, GPR32sp:$Zn),
+  asm, "\t$Pg/m, $Zm, $Zn", "", []>, Sched<[]> {
+  bits<3> Pg;
+  bits<5> Zdn;
+  bits<5> Zm;
+  let Inst{31-24} = 0b00000100;
+  let Inst{23-22} = sz8_64;
+  let Inst{21-19} = 0b000;
+  let Inst{18-16} = 0b010;
+  let Inst{15-13} = 0b000;
+  let Inst{12-10} = Pg;
+  let Inst{9-5}   = Zm;
+  let Inst{4-0}   = Zdn;
+
+  let hasSideEffects = 1;
+}
+
+multiclass sve_int_bin_pred_pack<string asm, SDPatternOperator op> {
+  def _B : sve_int_bin_pred_pack<0b00, asm, ZPR8>;
+  def _H : sve_int_bin_pred_pack<0b01, asm, ZPR16>;
+  def _S : sve_int_bin_pred_pack<0b10, asm, ZPR32>;
+  def _D : sve_int_bin_pred_pack<0b11, asm, ZPR64>;
+
+
+  def : Pat<(op nxv16i8:$Op1, nxv16i1:$Op2, i32:$Op3), (!cast<Instruction>(NAME # _B) nxv16i8:$Op1, nxv16i1:$Op2, i32:$Op3)>;
+  def : Pat<(op nxv8i16:$Op1, nxv8i1:$Op2,  i32:$Op3), (!cast<Instruction>(NAME # _H) nxv8i16:$Op1, nxv8i1:$Op2,  i32:$Op3)>;
+  def : Pat<(op nxv4i32:$Op1, nxv4i1:$Op2,  i32:$Op3), (!cast<Instruction>(NAME # _S) nxv4i32:$Op1, nxv4i1:$Op2,  i32:$Op3)>;
+  def : Pat<(op nxv2i64:$Op1, nxv2i1:$Op2,  i32:$Op3), (!cast<Instruction>(NAME # _D) nxv2i64:$Op1, nxv2i1:$Op2,  i32:$Op3)>;
+}
+
+class RStream3Op<bits<3> opc, RegisterClass bwtype, string asm, SDPatternOperator OpNode>
+  : I<(outs GPR32sp:$Rd), (ins GPR64sp:$Rn, GPR64sp:$Rm, bwtype:$Ra),
+      asm, "\t$Rd, $Rn, $Rm, $Ra", "",
+      [(set GPR32sp:$Rd, (OpNode GPR64sp:$Rn, GPR64sp:$Rm, bwtype:$Ra))]
+      >, Sched<[]> {
+  bits<5> Rd;
+  bits<5> Rn;
+  bits<5> Rm;
+  bits<5> Ra;
+  let Inst{31-24} = 0b00011011;
+  // 0b010 0b101 0b110
+  let Inst{23-21} = opc;
+  let Inst{20-16} = Rm;
+  let Inst{15}    = 0b0;
+  let Inst{14-10} = Ra;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Rd;
+
+  let hasSideEffects = 1;
+}
+
+class WStream2Op<bits<2> opc, RegisterClass bwtype, string asm, SDPatternOperator OpNode>
+  : I<(outs GPR32sp:$Rd), (ins GPR64sp:$Rn, bwtype:$Rm),
+      asm, "\t$Rd, $Rn, $Rm", "",
+      [(set GPR32sp:$Rd, (OpNode GPR64sp:$Rn, bwtype:$Rm))]
+      >, Sched<[]> {
+  bits<5> Rd;
+  bits<5> Rn;
+  bits<5> Rm;
+  let Inst{31-21} = 0b00111010110;
+  let Inst{20-16} = Rm;
+  let Inst{15-12} = 0b0001;
+  let Inst{11-10} = opc;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Rd;
+
+  let hasSideEffects = 1;
+}
+
+class EStream1Op<bits<1> opc, string asm, SDPatternOperator OpNode>
+  : I<(outs GPR64sp:$Rd), (ins GPR32sp:$Rn), asm, "\t$Rd, $Rn", "",
+      [(set GPR64sp:$Rd, (OpNode GPR32sp:$Rn))]>, Sched<[]> {
+  bits<5> Rd;
+  bits<5> Rn;
+
+  let Inst{31-11} = 0b110110101100000101001;
+  let Inst{10} = opc;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Rd;
+
+  let hasSideEffects = 1;
+}
+
 class sve_int_perm_insrs<bits<2> sz8_64, string asm, ZPRRegOp zprty,
                          RegisterClass srcRegType>
 : I<(outs zprty:$Zdn), (ins zprty:$_Zdn, srcRegType:$Rm),

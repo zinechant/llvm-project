@@ -335,6 +335,17 @@ enum NodeType : unsigned {
   DUP_MERGE_PASSTHRU,
   INDEX_VECTOR,
 
+  UNPACK,
+  PACK,
+  FRSTREAM,
+  CRSTREAM,
+  VRSTREAM,
+  FWSTREAM,
+  CWSTREAM,
+  VWSTREAM,
+  ERSTREAM,
+  EWSTREAM,
+
   // Cast between vectors of the same element type but differ in length.
   REINTERPRET_CAST,
 

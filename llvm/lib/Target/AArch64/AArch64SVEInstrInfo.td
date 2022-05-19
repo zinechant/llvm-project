@@ -440,7 +440,7 @@ let Predicates = [HasSVEorStreamingSVE] in {
   defm FMINNM_ZPmI  : sve_fp_2op_i_p_zds<0b101, "fminnm", "FMINNM_ZPZI", sve_fpimm_zero_one, fpimm0, fpimm_one, int_aarch64_sve_fminnm>;
   defm FMAX_ZPmI    : sve_fp_2op_i_p_zds<0b110, "fmax", "FMAX_ZPZI", sve_fpimm_zero_one, fpimm0, fpimm_one, int_aarch64_sve_fmax>;
   defm FMIN_ZPmI    : sve_fp_2op_i_p_zds<0b111, "fmin", "FMIN_ZPZI", sve_fpimm_zero_one, fpimm0, fpimm_one, int_aarch64_sve_fmin>;
-   
+
   defm FADD_ZPZI    : sve_fp_2op_i_p_zds_hfd<sve_fpimm_half_one, fpimm_half, fpimm_one, AArch64fadd_p>;
   defm FSUB_ZPZI    : sve_fp_2op_i_p_zds_hfd<sve_fpimm_half_one, fpimm_half, fpimm_one, AArch64fsub_p>;
   defm FMUL_ZPZI    : sve_fp_2op_i_p_zds_hfd<sve_fpimm_half_two, fpimm_half, fpimm_two, AArch64fmul_p>;
@@ -689,7 +689,38 @@ let Predicates = [HasSVE] in {
   defm COMPACT_ZPZ : sve_int_perm_compact<"compact", int_aarch64_sve_compact>;
 } // End HasSVE
 
+
+def SDT_AArch64UNPACK   : SDTypeProfile<1, 1, [SDTCisVec<0>, SDTCisInt<1>]>;
+def SDT_AArch64PACK     : SDTypeProfile<0, 3, [SDTCisVec<0>, SDTCisVec<1>, SDTCVecEltisVT<1,i1>, SDTCisInt<2>]>;
+def SDT_AArch64FRSTREAM : SDTypeProfile<1, 3, [SDTCisInt<0>, SDTCisPtrTy<1>, SDTCisInt<2>, SDTCisInt<3>]>;
+def SDT_AArch64VRSTREAM : SDTypeProfile<1, 3, [SDTCisInt<0>, SDTCisPtrTy<1>, SDTCisInt<2>, SDTCisPtrTy<3>]>;
+def SDT_AArch64FWSTREAM : SDTypeProfile<1, 2, [SDTCisInt<0>, SDTCisPtrTy<1>, SDTCisInt<2>]>;
+def SDT_AArch64VWSTREAM : SDTypeProfile<1, 2, [SDTCisInt<0>, SDTCisPtrTy<1>, SDTCisPtrTy<2>]>;
+def SDT_AArch64ESTREAM  : SDTypeProfile<1, 1, [SDTCisInt<0>, SDTCisInt<1>]>;
+
+def AArch64unpack   : SDNode<"AArch64ISD::UNPACK",   SDT_AArch64UNPACK, [SDNPHasChain]>;
+def AArch64pack     : SDNode<"AArch64ISD::PACK",     SDT_AArch64PACK, [SDNPHasChain]>;
+def AArch64frstream : SDNode<"AArch64ISD::FRSTREAM", SDT_AArch64FRSTREAM, [SDNPHasChain]>;
+def AArch64crstream : SDNode<"AArch64ISD::CRSTREAM", SDT_AArch64FRSTREAM, [SDNPHasChain]>;
+def AArch64vrstream : SDNode<"AArch64ISD::VRSTREAM", SDT_AArch64VRSTREAM, [SDNPHasChain]>;
+def AArch64fwstream : SDNode<"AArch64ISD::FWSTREAM", SDT_AArch64FWSTREAM, [SDNPHasChain]>;
+def AArch64cwstream : SDNode<"AArch64ISD::CWSTREAM", SDT_AArch64FWSTREAM, [SDNPHasChain]>;
+def AArch64vwstream : SDNode<"AArch64ISD::VWSTREAM", SDT_AArch64VWSTREAM, [SDNPHasChain]>;
+def AArch64erstream : SDNode<"AArch64ISD::ERSTREAM", SDT_AArch64ESTREAM, [SDNPHasChain]>;
+def AArch64ewstream : SDNode<"AArch64ISD::EWSTREAM", SDT_AArch64ESTREAM, [SDNPHasChain]>;
+
 let Predicates = [HasSVEorStreamingSVE] in {
+  defm UNPACK_ZR    : sve_int_perm_unpack<"unpack", AArch64unpack  >;
+  defm PACK_ZPR     : sve_int_bin_pred_pack<"pack", AArch64pack    >;
+  def FRSTREAM_RRRR : RStream3Op<0b010, GPR32sp, "frstream", AArch64frstream>;
+  def CRSTREAM_RRRR : RStream3Op<0b101, GPR32sp, "crstream", AArch64crstream>;
+  def VRSTREAM_RRRR : RStream3Op<0b110, GPR64sp, "vrstream", AArch64vrstream>;
+  def FWSTREAM_RRR  : WStream2Op<0b00,  GPR32sp, "fwstream", AArch64fwstream>;
+  def CWSTREAM_RRR  : WStream2Op<0b01,  GPR32sp, "cwstream", AArch64cwstream>;
+  def VWSTREAM_RRR  : WStream2Op<0b10,  GPR64sp, "vwstream", AArch64vwstream>;
+  def ERSTREAM_RR   : EStream1Op<0b0,            "erstream", AArch64erstream>;
+  def EWSTREAM_RR   : EStream1Op<0b1,            "ewstream", AArch64ewstream>;
+
   defm INSR_ZR : sve_int_perm_insrs<"insr", AArch64insr>;
   defm INSR_ZV : sve_int_perm_insrv<"insr", AArch64insr>;
   defm EXT_ZZI : sve_int_perm_extract_i<"ext", AArch64ext>;
@@ -1688,7 +1719,7 @@ let Predicates = [HasSVEorStreamingSVE] in {
   def : Pat<(nxv2f16 (AArch64fcvtr_mt (nxv2i1 (SVEAllActive):$Pg), (nxv2f32 ZPR:$Zs), (i64 timm0_1), (nxv2f16 ZPR:$Zd))),
             (FCVT_ZPmZ_StoH_UNDEF ZPR:$Zd, PPR:$Pg, ZPR:$Zs)>;
 
-  // Signed integer -> Floating-point 
+  // Signed integer -> Floating-point
   def : Pat<(nxv2f16 (AArch64scvtf_mt (nxv2i1 (SVEAllActive):$Pg),
                       (sext_inreg (nxv2i64 ZPR:$Zs), nxv2i16), (nxv2f16 ZPR:$Zd))),
             (SCVTF_ZPmZ_HtoH_UNDEF ZPR:$Zd, PPR:$Pg, ZPR:$Zs)>;

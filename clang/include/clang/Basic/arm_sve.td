@@ -745,6 +745,9 @@ defm SVDUP_Z : svdup_base<"svdup[_n]_{d}", "dPs",  MergeZeroExp, "aarch64_sve_du
 
 def SVINDEX : SInst<"svindex_{d}",   "dss",  "csilUcUsUiUl",    MergeNone,    "aarch64_sve_index">;
 
+def SVUNPACK   : SInst<"svunpack_{d}", "dk", "csil", MergeNone, "aarch64_sve_unpack">;
+def SVPACK     : SInst<"svpack_{d}", "vdPk", "csil", MergeNone, "aarch64_sve_pack">;
+
 // Integer arithmetic
 
 multiclass SInstZPZ<string name, string types, string intrinsic, list<FlagType> flags=[]> {
