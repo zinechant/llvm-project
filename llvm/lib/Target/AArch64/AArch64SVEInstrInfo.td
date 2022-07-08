@@ -440,7 +440,7 @@ let Predicates = [HasSVEorStreamingSVE] in {
   defm FMINNM_ZPmI  : sve_fp_2op_i_p_zds<0b101, "fminnm", "FMINNM_ZPZI", sve_fpimm_zero_one, fpimm0, fpimm_one, int_aarch64_sve_fminnm>;
   defm FMAX_ZPmI    : sve_fp_2op_i_p_zds<0b110, "fmax", "FMAX_ZPZI", sve_fpimm_zero_one, fpimm0, fpimm_one, int_aarch64_sve_fmax>;
   defm FMIN_ZPmI    : sve_fp_2op_i_p_zds<0b111, "fmin", "FMIN_ZPZI", sve_fpimm_zero_one, fpimm0, fpimm_one, int_aarch64_sve_fmin>;
-   
+
   defm FADD_ZPZI    : sve_fp_2op_i_p_zds_hfd<sve_fpimm_half_one, fpimm_half, fpimm_one, AArch64fadd_p>;
   defm FSUB_ZPZI    : sve_fp_2op_i_p_zds_hfd<sve_fpimm_half_one, fpimm_half, fpimm_one, AArch64fsub_p>;
   defm FMUL_ZPZI    : sve_fp_2op_i_p_zds_hfd<sve_fpimm_half_two, fpimm_half, fpimm_two, AArch64fmul_p>;
@@ -689,7 +689,101 @@ let Predicates = [HasSVE] in {
   defm COMPACT_ZPZ : sve_int_perm_compact<"compact", int_aarch64_sve_compact>;
 } // End HasSVE
 
+
 let Predicates = [HasSVEorStreamingSVE] in {
+  defm UNPACK_ZR     : sve_varsimd_unpack<                     "unpack", int_aarch64_sve_unpack>;
+  defm VUNPACK_ZR    : sve_varsimd_vunpack_unpred<            "vunpack", int_aarch64_sve_vunpack>;
+  defm VUNPACK_ZPzR  : sve_varsimd_int_un_pred_arit2<0b10,    "vunpack", int_aarch64_sve_vunpack>;
+
+  defm PACK_RPZR     : sve_varsimd_pack<                         "pack", int_aarch64_sve_pack>;
+  def  VPACK_RPZR    : sve_varsimd_vpack<                       "vpack", int_aarch64_sve_vpack>;
+  def  VSEL_ZPZZ     : sve_int_varsimd_vsel<                     "vsel", int_aarch64_sve_vsel>;
+
+  def  FRSTREAM_RRRR : RStream3Op<0b010, GPR32sp,            "frstream", int_aarch64_frstream>;
+  def  HRSTREAM_RRRR : RStream3Op<0b101, GPR64sp,            "hrstream", int_aarch64_hrstream>;
+  def  VRSTREAM_RRRR : RStream3Op<0b110, GPR64sp,            "vrstream", int_aarch64_vrstream>;
+  def  FWSTREAM_RRR  : WStream2Op<0b00,  GPR32sp,            "fwstream", int_aarch64_fwstream>;
+  def  HWSTREAM_RRR  : WStream2Op<0b01,  GPR64sp,            "hwstream", int_aarch64_hwstream>;
+  def  VWSTREAM_RRR  : WStream2Op<0b10,  GPR64sp,            "vwstream", int_aarch64_vwstream>;
+  def  CRSTREAM_RRR  : CStream2Op<0b11,                      "crstream", int_aarch64_crstream>;  // consume
+  def  ERSTREAM_RR   : EStream1Op<0b0,                       "erstream", int_aarch64_erstream>;
+  def  EWSTREAM_RR   : EStream1Op<0b1,                       "ewstream", int_aarch64_ewstream>;
+
+  defm VSTORE_RZRR   : sve_varsimd_vstore<                     "vstore", int_aarch64_sve_vstore>;
+  defm VLOAD_ZRR     : sve_varsimd_vload<                       "vload", int_aarch64_sve_vload>;
+
+  defm VADD_ZI       : sve_varsimd_int_addsub_imm<0b00,          "vadd", int_aarch64_sve_vadd>;
+  defm VSUB_ZI       : sve_varsimd_int_addsub_imm<0b01,          "vsub", int_aarch64_sve_vsub>;
+  defm VMUL_ZI       : sve_varsimd_int_maxmin_imm<0b10,          "vmul", int_aarch64_sve_vmul>;
+  defm VADD_ZZZ      : sve_varsimd_int_bin_arit_0<0b0,           "vadd", int_aarch64_sve_vadd>;
+  defm VSUB_ZZZ      : sve_varsimd_int_bin_arit_0<0b1,           "vsub", int_aarch64_sve_vsub>;
+  defm VMUL_ZZZ      : sve_varsimd_int_mul<       0b0,           "vmul", int_aarch64_sve_vmul>;
+  defm VADD_ZPmZ     : sve_varsimd_int_bin_pred_arit_0<0b100,    "vadd", int_aarch64_sve_vadd>;
+  defm VSUB_ZPmZ     : sve_varsimd_int_bin_pred_arit_0<0b101,    "vsub", int_aarch64_sve_vsub>;
+  defm VMUL_ZPmZ     : sve_varsimd_int_bin_pred_arit_0<0b110,    "vmul", int_aarch64_sve_vmul>;
+  defm VDIV_ZPmZ     : sve_varsimd_int_bin_pred_arit_0<0b111,    "vdiv", int_aarch64_sve_vdiv>;
+
+  defm VASR_ZZI      : sve_varsimd_int_bin_lshift_imm<           "vasl", int_aarch64_sve_vasl>;
+  defm VASL_ZZI      : sve_varsimd_int_bin_rshift_imm<           "vasr", int_aarch64_sve_vasr>;
+  defm VASR_ZPmI     : sve_varsimd_int_bin_pred_lshift_imm<0b00, "vasl", int_aarch64_sve_vasl>;
+  defm VASL_ZPmI     : sve_varsimd_int_bin_pred_rshift_imm<0b01, "vasr", int_aarch64_sve_vasr>;
+  defm VASR_ZPmZ     : sve_varsimd_int_bin_pred_shift<0b0,       "vasl", int_aarch64_sve_vasl>;
+  defm VASL_ZPmZ     : sve_varsimd_int_bin_pred_shift<0b1,       "vasr", int_aarch64_sve_vasr>;
+
+  defm VMAX_ZI       : sve_varsimd_int_maxmin_imm<0b00,          "vmax", int_aarch64_sve_vmax>;
+  defm VMIN_ZI       : sve_varsimd_int_maxmin_imm<0b01,          "vmin", int_aarch64_sve_vmin>;
+  defm VMAX_ZPmZ     : sve_varsimd_int_bin_pred_arit_1<0b110,    "vmax", int_aarch64_sve_vmax>;
+  defm VMIN_ZPmZ     : sve_varsimd_int_bin_pred_arit_1<0b111,    "vmin", int_aarch64_sve_vmin>;
+
+  defm VAND_ZI       : sve_varsimd_int_log_imm<0b01, 0b00,       "vand", int_aarch64_sve_vandi>;
+  defm VORR_ZI       : sve_varsimd_int_log_imm<0b01, 0b01,       "vorr", int_aarch64_sve_vorri>;
+  defm VEOR_ZI       : sve_varsimd_int_log_imm<0b01, 0b10,       "veor", int_aarch64_sve_veori>;
+  defm VBIC_ZI       : sve_varsimd_int_log_imm_bic<                      int_aarch64_sve_vbici>;
+  defm VAND_ZZZ      : sve_varsimd_int_bin_log<0b00, 0b00,       "vand", int_aarch64_sve_vand>;
+  defm VORR_ZZZ      : sve_varsimd_int_bin_log<0b00, 0b01,       "vorr", int_aarch64_sve_vorr>;
+  defm VEOR_ZZZ      : sve_varsimd_int_bin_log<0b00, 0b10,       "veor", int_aarch64_sve_veor>;
+  defm VBIC_ZZZ      : sve_varsimd_int_bin_log<0b00, 0b11,       "vbic", int_aarch64_sve_vbic>;
+  defm VAND_ZPmZ     : sve_varsimd_int_bin_pred_log<0b100,       "vand", int_aarch64_sve_vand>;
+  defm VORR_ZPmZ     : sve_varsimd_int_bin_pred_log<0b101,       "vorr", int_aarch64_sve_vorr>;
+  defm VEOR_ZPmZ     : sve_varsimd_int_bin_pred_log<0b110,       "veor", int_aarch64_sve_veor>;
+  defm VBIC_ZPmZ     : sve_varsimd_int_bin_pred_log<0b111,       "vbic", int_aarch64_sve_vbic>;
+
+  defm VABS_ZPmZ     : sve_varsimd_int_un_pred_arit0<0b00,       "vabs", int_aarch64_sve_vabs>;
+  defm VPSUM_ZPzZ    : sve_varsimd_int_un_pred_arit1<0b01,      "vpsum", int_aarch64_sve_vpsum>;
+  defm VTVS_ZPzZ     : sve_varsimd_int_un_pred_arit3<0b11,       "vtvs", int_aarch64_sve_vtvs>;
+
+  defm VCPY_ZPmR     : sve_varsimd_int_cpy_r<0b00,               "vcpy", int_aarch64_sve_vcpy>;
+  defm VCPZ_ZPzR     : sve_varsimd_int_cpz_r<0b01,               "vcpz", int_aarch64_sve_vcpz>;
+
+  defm VCPY_ZPmI     : sve_varsimd_int_cpy_imm<                  "vcpy", int_aarch64_sve_vcpy>;
+  defm VCPZ_ZPzI     : sve_varsimd_int_cpz_imm<                  "vcpz", int_aarch64_sve_vcpz>;
+
+  defm VDUP_ZI       : sve_varsimd_int_dup_imm<                  "vdup", int_aarch64_sve_vdup>;
+  defm VDUP_ZR       : sve_varsimd_int_dup_r<                    "vdup", int_aarch64_sve_vdup>;
+
+  defm VCMPEQ_PPzZI  : sve_varsimd_int_cmp_imm<0b00,           "vcmpeq", int_aarch64_sve_vcmpeq>;
+  defm VCMPNE_PPzZI  : sve_varsimd_int_cmp_imm<0b01,           "vcmpne", int_aarch64_sve_vcmpne>;
+  defm VCMPLT_PPzZI  : sve_varsimd_int_cmp_imm<0b10,           "vcmplt", int_aarch64_sve_vcmplt>;
+  defm VCMPLE_PPzZI  : sve_varsimd_int_cmp_imm<0b11,           "vcmple", int_aarch64_sve_vcmple>;
+  defm VCMPEQ_PPzZZ  : sve_varsimd_int_cmp<0b00,               "vcmpeq", int_aarch64_sve_vcmpeq>;
+  defm VCMPNE_PPzZZ  : sve_varsimd_int_cmp<0b01,               "vcmpne", int_aarch64_sve_vcmpne>;
+  defm VCMPLT_PPzZZ  : sve_varsimd_int_cmp<0b10,               "vcmplt", int_aarch64_sve_vcmplt>;
+  defm VCMPLE_PPzZZ  : sve_varsimd_int_cmp<0b11,               "vcmple", int_aarch64_sve_vcmple>;
+
+  def  VRNUM_R       : sve_varsimd_int_vrnum<0b0,              "vrnum" , int_aarch64_sve_vrnum>;
+  def  VRCNUM_R      : sve_varsimd_int_vrnum<0b1,              "vrcnum", int_aarch64_sve_vrcnum>;
+
+  defm VADDV_RPmZ    : sve_varsimd_int_reduce<0b01,             "vaddv", int_aarch64_sve_vaddv>;
+  defm VMAXV_RPmZ    : sve_varsimd_int_reduce<0b10,             "vmaxv", int_aarch64_sve_vmaxv>;
+  defm VMINV_RPmZ    : sve_varsimd_int_reduce<0b11,             "vminv", int_aarch64_sve_vminv>;
+  defm VNUM_RPmZ     : sve_varsimd_int_num<0b0,                  "vnum", int_aarch64_sve_vnum>;
+
+  defm VINDEX_II     : sve_varsimd_index_ii<                   "vindex", int_aarch64_sve_vindex>;
+  defm VINDEX_IR     : sve_varsimd_index_ir<                   "vindex", int_aarch64_sve_vindex>;
+  defm VINDEX_RI     : sve_varsimd_index_ri<                   "vindex", int_aarch64_sve_vindex>;
+  defm VINDEX_RR     : sve_varsimd_index_rr<                   "vindex", int_aarch64_sve_vindex>;
+
+
   defm INSR_ZR : sve_int_perm_insrs<"insr", AArch64insr>;
   defm INSR_ZV : sve_int_perm_insrv<"insr", AArch64insr>;
   defm EXT_ZZI : sve_int_perm_extract_i<"ext", AArch64ext>;
@@ -1688,7 +1782,7 @@ let Predicates = [HasSVEorStreamingSVE] in {
   def : Pat<(nxv2f16 (AArch64fcvtr_mt (nxv2i1 (SVEAllActive):$Pg), (nxv2f32 ZPR:$Zs), (i64 timm0_1), (nxv2f16 ZPR:$Zd))),
             (FCVT_ZPmZ_StoH_UNDEF ZPR:$Zd, PPR:$Pg, ZPR:$Zs)>;
 
-  // Signed integer -> Floating-point 
+  // Signed integer -> Floating-point
   def : Pat<(nxv2f16 (AArch64scvtf_mt (nxv2i1 (SVEAllActive):$Pg),
                       (sext_inreg (nxv2i64 ZPR:$Zs), nxv2i16), (nxv2f16 ZPR:$Zd))),
             (SCVTF_ZPmZ_HtoH_UNDEF ZPR:$Zd, PPR:$Pg, ZPR:$Zs)>;

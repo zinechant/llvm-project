@@ -745,6 +745,16 @@ defm SVDUP_Z : svdup_base<"svdup[_n]_{d}", "dPs",  MergeZeroExp, "aarch64_sve_du
 
 def SVINDEX : SInst<"svindex_{d}",   "dss",  "csilUcUsUiUl",    MergeNone,    "aarch64_sve_index">;
 
+def SVVINDEX   : SInst<"svvindex",   "dss",  "i",    MergeNone, "aarch64_sve_vindex">;
+
+def SVUNPACK   : SInst<"svunpack_{d}", "dm", "csil", MergeNone, "aarch64_sve_unpack">;
+def SVPACK     : SInst<"svpack_{d}", "mPdm", "csil", MergeNone, "aarch64_sve_pack">;
+def SVVUNPACK  : SInst<"svvunpack", "dPm", "i", MergeNone, "aarch64_sve_vunpack">;
+def SVVPACK    : SInst<"svvpack", "mPdm", "i", MergeNone, "aarch64_sve_vpack">;
+
+def SVVLOAD    : SInst<"svvload", "dAA", "i", MergeNone, "aarch64_sve_vload">;
+def SVVSTORE   : SInst<"svvstore", "kdAA", "i", MergeNone, "aarch64_sve_vstore">;
+
 // Integer arithmetic
 
 multiclass SInstZPZ<string name, string types, string intrinsic, list<FlagType> flags=[]> {
@@ -768,6 +778,12 @@ multiclass SInstZPZZ<string name, string types, string intrinsic, list<FlagType>
   def _N_Z : SInst<name # "[_n_{d}]", "dPda", types, MergeZero, intrinsic, flags>;
 }
 
+multiclass VSInstZPZZ<string name, string types, string intrinsic, list<FlagType> flags=[]> {
+  def _M   : SInst<name,   "dPdd", types, MergeOp1,  intrinsic, flags>;
+
+  def _N_M : SInst<name # "[_n]", "dPda", types, MergeOp1,  intrinsic, flags>;
+}
+
 defm SVABD_S  : SInstZPZZ<"svabd",  "csil",         "aarch64_sve_sabd">;
 defm SVABD_U  : SInstZPZZ<"svabd",  "UcUsUiUl",     "aarch64_sve_uabd">;
 defm SVADD    : SInstZPZZ<"svadd",  "csilUcUsUiUl", "aarch64_sve_add">;
@@ -785,6 +801,13 @@ defm SVMULH_U : SInstZPZZ<"svmulh", "UcUsUiUl",     "aarch64_sve_umulh">;
 defm SVSUB    : SInstZPZZ<"svsub",  "csilUcUsUiUl", "aarch64_sve_sub">;
 defm SVSUBR   : SInstZPZZ<"svsubr", "csilUcUsUiUl", "aarch64_sve_subr">;
 
+defm SVVADD   : VSInstZPZZ<"svvadd", "i",            "aarch64_sve_vadd">;
+defm SVVDIV   : VSInstZPZZ<"svvdiv", "i",            "aarch64_sve_vdiv">;
+defm SVVMAX   : VSInstZPZZ<"svvmax", "i",            "aarch64_sve_vmax">;
+defm SVVMIN   : VSInstZPZZ<"svvmin", "i",            "aarch64_sve_vmin">;
+defm SVVMUL   : VSInstZPZZ<"svvmul", "i",            "aarch64_sve_vmul">;
+defm SVVSUB   : VSInstZPZZ<"svvsub", "i",            "aarch64_sve_vsub">;
+def  SVVSEL   : SInst<"svvsel", "dPdd", "i", MergeNone, "aarch64_sve_vsel">;
 //------------------------------------------------------------------------------
 
 multiclass SInstZPZZZ<string name, string types, string intrinsic, list<FlagType> flags=[]> {
@@ -823,6 +846,10 @@ def SVDOT_LANE_U : SInst<"svdot_lane[_{d}]",  "ddqqi",  "UiUl", MergeNone, "aarc
 
 ////////////////////////////////////////////////////////////////////////////////
 // Logical operations
+multiclass VSInstLZPZZ<string name, string types, string intrinsic, list<FlagType> flags=[]> {
+  def _M : SInst<name,          "dPdd", types, MergeOp1,  intrinsic, flags>;
+  def _N : SInst<name # "[_n]", "dPdl", types, MergeOp1,  intrinsic # "i", flags>;
+}
 
 defm SVAND  : SInstZPZZ<"svand", "csilUcUsUiUl", "aarch64_sve_and">;
 defm SVBIC  : SInstZPZZ<"svbic", "csilUcUsUiUl", "aarch64_sve_bic">;
@@ -831,6 +858,19 @@ defm SVORR  : SInstZPZZ<"svorr", "csilUcUsUiUl", "aarch64_sve_orr">;
 
 defm SVCNOT : SInstZPZ<"svcnot", "csilUcUsUiUl", "aarch64_sve_cnot">;
 defm SVNOT  : SInstZPZ<"svnot",  "csilUcUsUiUl", "aarch64_sve_not">;
+
+defm SVVAND : VSInstLZPZZ<"svvand", "i", "aarch64_sve_vand">;
+defm SVVBIC : VSInstLZPZZ<"svvbic", "i", "aarch64_sve_vbic">;
+defm SVVEOR : VSInstLZPZZ<"svveor", "i", "aarch64_sve_veor">;
+defm SVVORR : VSInstLZPZZ<"svvorr", "i", "aarch64_sve_vorr">;
+
+def SVVABS : SInst<"svvabs", "ddPd", "i", MergeOp1,  "aarch64_sve_vabs" , []>;
+def SVVPSUM: SInst<"svvpsum", "dPd", "i", MergeNone, "aarch64_sve_vpsum", []>;
+
+def SVVTVS : SInst<"svvtvs[_{d}]", "tPd", "csil", MergeNone, "aarch64_sve_vtvs", []>;
+def SVVCPY : SInst<"svvcpy", "ddPl",  "i", MergeOp1,  "aarch64_sve_vcpy", []>;
+def SVVCPZ : SInst<"svvcpz", "dPl",  "i",  MergeNone, "aarch64_sve_vcpz", []>;
+def SVVDUP : SInst<"svvdup", "dl", "i", MergeNone, "aarch64_sve_vdup", []>;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Shifts
@@ -857,6 +897,15 @@ defm SVASR : SInst_SHIFT<"svasr", "aarch64_sve_asr", "csil", "csi">;
 defm SVLSL : SInst_SHIFT<"svlsl", "aarch64_sve_lsl", "csilUcUsUiUl", "csiUcUsUi">;
 defm SVLSR : SInst_SHIFT<"svlsr", "aarch64_sve_lsr", "UcUsUiUl", "UcUsUi">;
 
+multiclass SInst_VSHIFT<string name, string intrinsic, string ts> {
+  def _M : SInst<name, "dPdd", ts, MergeOp1,  intrinsic>;
+
+  def _N : SInst<name # "[_n]", "dPda", ts, MergeOp1,  intrinsic>;
+}
+
+defm SVVASL : SInst_VSHIFT<"svvasl", "aarch64_sve_vasl", "i">;
+defm SVVASR : SInst_VSHIFT<"svvasr", "aarch64_sve_vasr", "i">;
+
 def SVASRD_M : SInst<"svasrd[_n_{d}]", "dPdi", "csil",            MergeOp1,  "aarch64_sve_asrd", [], [ImmCheck<2, ImmCheckShiftRight, 1>]>;
 def SVASRD_X : SInst<"svasrd[_n_{d}]", "dPdi", "csil",            MergeAny,  "aarch64_sve_asrd", [], [ImmCheck<2, ImmCheckShiftRight, 1>]>;
 def SVASRD_Z : SInst<"svasrd[_n_{d}]", "dPdi", "csil",            MergeZero, "aarch64_sve_asrd", [], [ImmCheck<2, ImmCheckShiftRight, 1>]>;
@@ -868,6 +917,11 @@ let ArchGuard = "defined(__ARM_FEATURE_SVE_BF16)" in {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Integer reductions
+
+def SVVNUM   : SInst<"svvnum",  "kPd", "i", MergeNone, "aarch64_sve_vnum">;
+def SVVMAX   : SInst<"svvmaxv", "lPd", "i", MergeNone, "aarch64_sve_vmaxv">;
+def SVVMIN   : SInst<"svvminv", "lPd", "i", MergeNone, "aarch64_sve_vminv">;
+def SVVADDV  : SInst<"svvaddv", "lPd", "i", MergeNone, "aarch64_sve_vaddv">;
 
 def SVADDV_S : SInst<"svaddv[_{d}]", "lPd", "csil",         MergeNone, "aarch64_sve_saddv">;
 def SVADDV_U : SInst<"svaddv[_{d}]", "nPd", "UcUsUiUl",     MergeNone, "aarch64_sve_uaddv">;
@@ -881,6 +935,15 @@ def SVORV    : SInst<"svorv[_{d}]",  "sPd", "csilUcUsUiUl", MergeNone, "aarch64_
 
 ////////////////////////////////////////////////////////////////////////////////
 // Integer comparisons
+
+def SVVCMPEQ   : SInst<"svvcmpeq",     "PPdd", "i", MergeNone, "aarch64_sve_vcmpeq">;
+def SVVCMPEQ_N : SInst<"svvcmpeq[_n]", "PPda", "i", MergeNone, "aarch64_sve_vcmpeq">;
+def SVVCMPNE   : SInst<"svvcmpne",     "PPdd", "i", MergeNone, "aarch64_sve_vcmpne">;
+def SVVCMPNE_N : SInst<"svvcmpne[_n]", "PPda", "i", MergeNone, "aarch64_sve_vcmpne">;
+def SVVCMPLT   : SInst<"svvcmplt",     "PPdd", "i", MergeNone, "aarch64_sve_vcmplt">;
+def SVVCMPLT_N : SInst<"svvcmplt[_n]", "PPda", "i", MergeNone, "aarch64_sve_vcmplt">;
+def SVVCMPLE   : SInst<"svvcmple",     "PPdd", "i", MergeNone, "aarch64_sve_vcmple">;
+def SVVCMPLE_N : SInst<"svvcmple[_n]", "PPda", "i", MergeNone, "aarch64_sve_vcmple">;
 
 def SVCMPEQ : SInst<"svcmpeq[_{d}]", "PPdd", "csilUcUsUiUl", MergeNone, "aarch64_sve_cmpeq">;
 def SVCMPNE : SInst<"svcmpne[_{d}]", "PPdd", "csilUcUsUiUl", MergeNone, "aarch64_sve_cmpne">;
@@ -1263,6 +1326,9 @@ def SVZIP2_B  : SInst<"svzip2_{d}",     "PPP",  "PcPsPiPl", MergeNone, "aarch64_
 ////////////////////////////////////////////////////////////////////////////////
 // Predicate creation
 
+def SVVRNUM   : SInst<"svvrnum", "k", "", MergeNone, "aarch64_sve_vrnum", [IsOverloadNone]>;
+def SVVRCNUM   : SInst<"svvrcnum", "k", "", MergeNone, "aarch64_sve_vrcnum", [IsOverloadNone]>;
+
 def SVPFALSE : SInst<"svpfalse[_b]", "P", "", MergeNone, "", [IsOverloadNone]>;
 
 def SVPTRUE_PAT : SInst<"svptrue_pat_{d}", "PI", "PcPsPiPl", MergeNone, "aarch64_sve_ptrue">;
@@ -1326,6 +1392,16 @@ def SVCNTB : SInst<"svcntb", "n", "", MergeNone, "aarch64_sve_cntb", [IsAppendSV
 def SVCNTH : SInst<"svcnth", "n", "", MergeNone, "aarch64_sve_cnth", [IsAppendSVALL, IsOverloadNone]>;
 def SVCNTW : SInst<"svcntw", "n", "", MergeNone, "aarch64_sve_cntw", [IsAppendSVALL, IsOverloadNone]>;
 def SVCNTD : SInst<"svcntd", "n", "", MergeNone, "aarch64_sve_cntd", [IsAppendSVALL, IsOverloadNone]>;
+
+def FRSTREAM : SInst<"frstream", "mSmn", "", MergeNone, "aarch64_frstream", [IsOverloadNone]>;
+def HRSTREAM : SInst<"hrstream", "mSSn", "", MergeNone, "aarch64_hrstream", [IsOverloadNone]>;
+def VRSTREAM : SInst<"vrstream", "mSSn", "", MergeNone, "aarch64_vrstream", [IsOverloadNone]>;
+def FWSTREAM : SInst<"fwstream", "mAm",  "", MergeNone, "aarch64_fwstream", [IsOverloadNone]>;
+def HWSTREAM : SInst<"hwstream", "mAS",  "", MergeNone, "aarch64_hwstream", [IsOverloadNone]>;
+def VWSTREAM : SInst<"vwstream", "mAA",  "", MergeNone, "aarch64_vwstream", [IsOverloadNone]>;
+def CRSTREAM : SInst<"crstream", "mmm",  "", MergeNone, "aarch64_crstream", [IsOverloadNone]>; // Consume
+def ERSTREAM : SInst<"erstream", "nm",   "", MergeNone, "aarch64_erstream", [IsOverloadNone]>;
+def EWSTREAM : SInst<"ewstream", "nm",   "", MergeNone, "aarch64_ewstream", [IsOverloadNone]>;
 
 def SVCNTP : SInst<"svcntp_{d}",  "nPP", "PcPsPiPl",        MergeNone, "aarch64_sve_cntp">;
 def SVLEN  : SInst<"svlen[_{d}]", "nd",  "csilUcUsUiUlhfd", MergeNone>;

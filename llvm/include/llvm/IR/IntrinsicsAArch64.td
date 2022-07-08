@@ -1028,11 +1028,84 @@ let TargetPrefix = "aarch64" in {  // All intrinsics start with "llvm.aarch64.".
                    LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>, LLVMPointerToElt<0>],
                   [IntrArgMemOnly, NoCapture<ArgIndex<5>>]>;
 
+  class AdvSIMD_SVE_UNPACKInaccess_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                [llvm_i32_ty],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_SVE_VUNPACKInaccess_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                [LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                llvm_i32_ty],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_SVE_PACKInaccess_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_i32_ty],
+                [LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                llvm_anyvector_ty, llvm_i32_ty],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_SVE_VLOAD_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                [llvm_ptr_ty, llvm_ptr_ty],
+                [IntrReadMem, IntrInaccessibleMemOrArgMemOnly]>;
+
+  class AdvSIMD_SVE_VSTORE_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_i32_ty],
+                [llvm_anyvector_ty, llvm_ptr_ty, llvm_ptr_ty],
+                [IntrWriteMem, IntrInaccessibleMemOrArgMemOnly]>;
+
+  class AdvSIMD_FRStream_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_i32_ty],
+                [llvm_ptr_ty, llvm_i32_ty, llvm_i64_ty],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_HRStream_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_i32_ty],
+                [llvm_ptr_ty, llvm_ptr_ty, llvm_i64_ty],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_VRStream_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_i32_ty],
+                [llvm_ptr_ty, llvm_ptr_ty, llvm_i64_ty],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_FWStream_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_i32_ty],
+                [llvm_ptr_ty, llvm_i32_ty],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_HWStream_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_i32_ty],
+                [llvm_ptr_ty, llvm_ptr_ty],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_VWStream_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_i32_ty],
+                [llvm_ptr_ty, llvm_ptr_ty],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_CRStream_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_EndStream_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_i64_ty],
+                [llvm_i32_ty],
+                [IntrInaccessibleMemOnly]>;
+
   class AdvSIMD_SVE_Index_Intrinsic
     : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
                 [LLVMVectorElementType<0>,
                  LLVMVectorElementType<0>],
                 [IntrNoMem]>;
+
+  class AdvSIMD_SVE_VIndex_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                [llvm_i32_ty,
+                 llvm_i32_ty],
+                [IntrInaccessibleMemOnly]>;
 
   class AdvSIMD_Merged1VectorArg_Intrinsic
     : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
@@ -1040,6 +1113,32 @@ let TargetPrefix = "aarch64" in {  // All intrinsics start with "llvm.aarch64.".
                  LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
                  LLVMMatchType<0>],
                 [IntrNoMem]>;
+
+  class AdvSIMD_Merged1VectorArgInaccess_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                [LLVMMatchType<0>,
+                 LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                 LLVMMatchType<0>],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_Zero1VectorArgInaccess_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                [LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                 LLVMMatchType<0>],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_Merged1ScalarArgInaccess_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                [LLVMMatchType<0>,
+                 LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                 llvm_i64_ty],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_Pred1ScalarArgInaccess_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                [LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                 llvm_i64_ty],
+                [IntrInaccessibleMemOnly]>;
 
   class AdvSIMD_2VectorArgIndexed_Intrinsic
     : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
@@ -1062,12 +1161,32 @@ let TargetPrefix = "aarch64" in {  // All intrinsics start with "llvm.aarch64.".
                  LLVMMatchType<0>],
                 [IntrNoMem]>;
 
+  class AdvSIMD_Pred1VectorArgInaccess_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                [LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                 LLVMMatchType<0>],
+                [IntrInaccessibleMemOnly]>;
+
   class AdvSIMD_Pred2VectorArg_Intrinsic
     : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
                 [LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
                  LLVMMatchType<0>,
                  LLVMMatchType<0>],
                 [IntrNoMem]>;
+
+  class AdvSIMD_Pred2VectorArgInaccess_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                [LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                 LLVMMatchType<0>,
+                 LLVMMatchType<0>],
+                [IntrInaccessibleMemOnly]>;
+
+  class AdvSIMD_PredVectorArgImmInaccess_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                [LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                 LLVMMatchType<0>,
+                 llvm_i64_ty],
+                [IntrInaccessibleMemOnly]>;
 
   class AdvSIMD_Pred3VectorArg_Intrinsic
     : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
@@ -1083,6 +1202,13 @@ let TargetPrefix = "aarch64" in {  // All intrinsics start with "llvm.aarch64.".
                  llvm_anyvector_ty,
                  LLVMMatchType<0>],
                 [IntrNoMem]>;
+
+  class AdvSIMD_SVE_CompareInaccess_Intrinsic
+    : DefaultAttrsIntrinsic<[LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>],
+                [LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                 llvm_anyvector_ty,
+                 LLVMMatchType<0>],
+                [IntrInaccessibleMemOnly]>;
 
   class AdvSIMD_SVE_CompareWide_Intrinsic
     : DefaultAttrsIntrinsic<[LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>],
@@ -1183,6 +1309,10 @@ let TargetPrefix = "aarch64" in {  // All intrinsics start with "llvm.aarch64.".
   class AdvSIMD_SVE_DUP_Unpred_Intrinsic
     : DefaultAttrsIntrinsic<[llvm_anyvector_ty], [LLVMVectorElementType<0>],
                 [IntrNoMem]>;
+
+  class AdvSIMD_SVE_VDUP_Unpred_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty], [llvm_i64_ty],
+                [IntrInaccessibleMemOnly]>;
 
   class AdvSIMD_SVE_DUPQ_Intrinsic
     : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
@@ -1414,11 +1544,26 @@ class AdvSIMD_SVE_Reduce_Intrinsic
                llvm_anyvector_ty],
               [IntrNoMem]>;
 
+class AdvSIMD_SVE_NUM_Intrinsic
+  : DefaultAttrsIntrinsic<[llvm_i32_ty],
+              [LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+               llvm_anyvector_ty],
+              [IntrInaccessibleMemOnly]>;
+
+class AdvSIMD_CCNUM_Intrinsic
+  : DefaultAttrsIntrinsic<[llvm_i32_ty], [], [IntrInaccessibleMemOnly]>;
+
 class AdvSIMD_SVE_SADDV_Reduce_Intrinsic
   : DefaultAttrsIntrinsic<[llvm_i64_ty],
               [LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
                llvm_anyvector_ty],
               [IntrNoMem]>;
+
+class AdvSIMD_SVE_SADDV_Reduce_Inaccess_Intrinsic
+  : DefaultAttrsIntrinsic<[llvm_i64_ty],
+              [LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+               llvm_anyvector_ty],
+              [IntrInaccessibleMemOnly]>;
 
 class AdvSIMD_SVE_WHILE_Intrinsic
     : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
@@ -1632,6 +1777,26 @@ def int_aarch64_sve_prfd_gather_scalar_offset : SVE_gather_prf_VS;
 def int_aarch64_sve_dup : AdvSIMD_SVE_DUP_Intrinsic;
 def int_aarch64_sve_dup_x : AdvSIMD_SVE_DUP_Unpred_Intrinsic;
 
+def int_aarch64_sve_unpack  : AdvSIMD_SVE_UNPACKInaccess_Intrinsic;
+def int_aarch64_sve_pack    : AdvSIMD_SVE_PACKInaccess_Intrinsic;
+def int_aarch64_sve_vunpack : AdvSIMD_SVE_VUNPACKInaccess_Intrinsic;
+def int_aarch64_sve_vpack   : AdvSIMD_SVE_PACKInaccess_Intrinsic;
+
+def int_aarch64_sve_vload  : AdvSIMD_SVE_VLOAD_Intrinsic;
+def int_aarch64_sve_vstore : AdvSIMD_SVE_VSTORE_Intrinsic;
+def int_aarch64_sve_vrnum  : AdvSIMD_CCNUM_Intrinsic;
+def int_aarch64_sve_vrcnum : AdvSIMD_CCNUM_Intrinsic;
+
+def int_aarch64_frstream   : AdvSIMD_FRStream_Intrinsic;
+def int_aarch64_hrstream   : AdvSIMD_HRStream_Intrinsic;
+def int_aarch64_vrstream   : AdvSIMD_VRStream_Intrinsic;
+def int_aarch64_fwstream   : AdvSIMD_FWStream_Intrinsic;
+def int_aarch64_hwstream   : AdvSIMD_HWStream_Intrinsic;
+def int_aarch64_vwstream   : AdvSIMD_VWStream_Intrinsic;
+def int_aarch64_crstream   : AdvSIMD_CRStream_Intrinsic;
+def int_aarch64_erstream   : AdvSIMD_EndStream_Intrinsic;
+def int_aarch64_ewstream   : AdvSIMD_EndStream_Intrinsic;
+
 def int_aarch64_sve_index : AdvSIMD_SVE_Index_Intrinsic;
 
 //
@@ -1646,6 +1811,50 @@ def int_aarch64_sve_adrd : AdvSIMD_2VectorArg_Intrinsic;
 //
 // Integer arithmetic
 //
+
+def int_aarch64_sve_vsel   : AdvSIMD_Pred2VectorArgInaccess_Intrinsic;
+
+def int_aarch64_sve_vadd   : AdvSIMD_Pred2VectorArgInaccess_Intrinsic;
+def int_aarch64_sve_vsub   : AdvSIMD_Pred2VectorArgInaccess_Intrinsic;
+def int_aarch64_sve_vdiv   : AdvSIMD_Pred2VectorArgInaccess_Intrinsic;
+def int_aarch64_sve_vmul   : AdvSIMD_Pred2VectorArgInaccess_Intrinsic;
+
+def int_aarch64_sve_vmax   : AdvSIMD_Pred2VectorArgInaccess_Intrinsic;
+def int_aarch64_sve_vmin   : AdvSIMD_Pred2VectorArgInaccess_Intrinsic;
+
+def int_aarch64_sve_vand   : AdvSIMD_Pred2VectorArgInaccess_Intrinsic;
+def int_aarch64_sve_vbic   : AdvSIMD_Pred2VectorArgInaccess_Intrinsic;
+def int_aarch64_sve_veor   : AdvSIMD_Pred2VectorArgInaccess_Intrinsic;
+def int_aarch64_sve_vorr   : AdvSIMD_Pred2VectorArgInaccess_Intrinsic;
+
+def int_aarch64_sve_vandi  : AdvSIMD_PredVectorArgImmInaccess_Intrinsic;
+def int_aarch64_sve_vbici  : AdvSIMD_PredVectorArgImmInaccess_Intrinsic;
+def int_aarch64_sve_veori  : AdvSIMD_PredVectorArgImmInaccess_Intrinsic;
+def int_aarch64_sve_vorri  : AdvSIMD_PredVectorArgImmInaccess_Intrinsic;
+
+def int_aarch64_sve_vasl   : AdvSIMD_Pred2VectorArgInaccess_Intrinsic;
+def int_aarch64_sve_vasr   : AdvSIMD_Pred2VectorArgInaccess_Intrinsic;
+
+def int_aarch64_sve_vabs   : AdvSIMD_Merged1VectorArgInaccess_Intrinsic;
+def int_aarch64_sve_vpsum  : AdvSIMD_Zero1VectorArgInaccess_Intrinsic;
+def int_aarch64_sve_vtvs   : AdvSIMD_Zero1VectorArgInaccess_Intrinsic;
+def int_aarch64_sve_vcpy   : AdvSIMD_Merged1ScalarArgInaccess_Intrinsic;
+def int_aarch64_sve_vcpz   : AdvSIMD_Pred1ScalarArgInaccess_Intrinsic;
+
+def int_aarch64_sve_vdup   : AdvSIMD_SVE_VDUP_Unpred_Intrinsic;
+
+def int_aarch64_sve_vnum   : AdvSIMD_SVE_NUM_Intrinsic;
+def int_aarch64_sve_vmaxv  : AdvSIMD_SVE_SADDV_Reduce_Inaccess_Intrinsic;
+def int_aarch64_sve_vminv  : AdvSIMD_SVE_SADDV_Reduce_Inaccess_Intrinsic;
+def int_aarch64_sve_vaddv  : AdvSIMD_SVE_SADDV_Reduce_Inaccess_Intrinsic;
+
+
+def int_aarch64_sve_vindex : AdvSIMD_SVE_VIndex_Intrinsic;
+
+def int_aarch64_sve_vcmpeq : AdvSIMD_SVE_CompareInaccess_Intrinsic;
+def int_aarch64_sve_vcmpne : AdvSIMD_SVE_CompareInaccess_Intrinsic;
+def int_aarch64_sve_vcmplt : AdvSIMD_SVE_CompareInaccess_Intrinsic;
+def int_aarch64_sve_vcmple : AdvSIMD_SVE_CompareInaccess_Intrinsic;
 
 def int_aarch64_sve_add   : AdvSIMD_Pred2VectorArg_Intrinsic;
 def int_aarch64_sve_sub   : AdvSIMD_Pred2VectorArg_Intrinsic;

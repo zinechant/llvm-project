@@ -189,6 +189,9 @@ def cpy_imm8_opt_lsl_i16 : imm8_opt_lsl<16, "int16_t", SVECpyImmOperand16>;
 def cpy_imm8_opt_lsl_i32 : imm8_opt_lsl<32, "int32_t", SVECpyImmOperand32>;
 def cpy_imm8_opt_lsl_i64 : imm8_opt_lsl<64, "int64_t", SVECpyImmOperand64>;
 
+def SVEVCpyImmOperand64 : SVEShiftedImmOperand<64, "VCpy", "isSVECpyImm<int64_t>">;
+def vcpy_imm8_opt_lsl_i64 : imm8_opt_lsl<64, "int64_t", SVEVCpyImmOperand64>;
+
 def addsub_imm8_opt_lsl_i8  : imm8_opt_lsl<8,  "uint8_t",  SVEAddSubImmOperand8>;
 def addsub_imm8_opt_lsl_i16 : imm8_opt_lsl<16, "uint16_t", SVEAddSubImmOperand16>;
 def addsub_imm8_opt_lsl_i32 : imm8_opt_lsl<32, "uint32_t", SVEAddSubImmOperand32>;
@@ -363,6 +366,18 @@ multiclass SVE_1_Op_PassthruUndef_Pat<ValueType vtd, SDPatternOperator op, Value
             (inst $Op3, $Op1, $Op2)>;
 }
 
+
+class SVE_Op1_Passthru_Pat<ValueType vtd, SDPatternOperator op, ValueType pg,
+                            ValueType vts, Instruction inst>
+: Pat<(vtd (op vtd:$Op1, pg:$Op2, vts:$Op3)),
+      (inst $Op1, $Op2, $Op3)>;
+
+
+class SVE_Op1_PassthruUndef_Pat<ValueType vtd, SDPatternOperator op, ValueType pg,
+                                 ValueType vts, Instruction inst>
+: Pat<(vtd (op  (vtd undef), pg:$Op1, vts:$Op2)),
+            (inst (IMPLICIT_DEF), $Op1, $Op2)>;
+
 // Used to match FP_ROUND_MERGE_PASSTHRU, which has an additional flag for the
 // type of rounding. This is matched by timm0_1 in pattern below and ignored.
 class SVE_1_Op_Passthru_Round_Pat<ValueType vtd, SDPatternOperator op, ValueType pg,
@@ -386,6 +401,10 @@ class SVE_1_Op_Imm_OptLsl_Reverse_Pat<ValueType vt, SDPatternOperator op, ZPRReg
 class SVE_1_Op_Imm_OptLsl_Pat<ValueType vt, SDPatternOperator op, ZPRRegOp zprty,
                               ValueType it, ComplexPattern cpx, Instruction inst>
   : Pat<(vt (op (vt zprty:$Op1), (vt (AArch64dup (it (cpx i32:$imm, i32:$shift)))))),
+        (inst $Op1, i32:$imm, i32:$shift)>;
+class SVE_1_Op_Imm_OptLsl_All_Active<ValueType vt, ValueType pt, SDPatternOperator op, ZPRRegOp zprty,
+                              ValueType it, ComplexPattern cpx, Instruction inst>
+  : Pat<(vt (op (pt (SVEAllActive)), (vt zprty:$Op1), (vt (AArch64dup (it (cpx i32:$imm, i32:$shift)))))),
         (inst $Op1, i32:$imm, i32:$shift)>;
 
 class SVE_1_Op_Imm_Arith_All_Active<ValueType vt, ValueType pt, SDPatternOperator op,
@@ -418,6 +437,12 @@ class SVE_2_Op_Pred_All_Active_Pt<ValueType vtd, SDPatternOperator op,
 class SVE_3_Op_Pat<ValueType vtd, SDPatternOperator op, ValueType vt1,
                    ValueType vt2, ValueType vt3, Instruction inst>
 : Pat<(vtd (op vt1:$Op1, vt2:$Op2, vt3:$Op3)),
+      (inst $Op1, $Op2, $Op3)>;
+
+class SVE_3_Op_Pred_All_Active<ValueType vtd, SDPatternOperator op,
+                               ValueType pt, ValueType vt1, ValueType vt2,
+                               ValueType vt3, Instruction inst>
+: Pat<(vtd (op (pt (SVEAllActive)), vt1:$Op1, vt2:$Op2, vt3:$Op3)),
       (inst $Op1, $Op2, $Op3)>;
 
 multiclass SVE_3_Op_Undef_Pat<ValueType vtd, SDPatternOperator op, ValueType vt1,
@@ -1117,6 +1142,28 @@ multiclass sve_int_perm_dup_r<string asm, SDPatternOperator op> {
                   (!cast<Instruction>(NAME # _D) ZPR64:$Zd, GPR64sp:$Rn), 1>;
 }
 
+class sve_varsimd_int_dup_r<bits<2> sz8_64, string asm, ZPRRegOp zprty,
+                         ValueType vt, RegisterClass srcRegType,
+                         SDPatternOperator op>
+: I<(outs zprty:$Zd), (ins srcRegType:$Rn),
+  asm, "\t$Zd, $Rn",
+  "",
+  [(set (vt zprty:$Zd), (op srcRegType:$Rn))]>, Sched<[]> {
+  bits<5> Rn;
+  bits<5> Zd;
+  let Inst{31-24} = 0b00000101;
+  let Inst{23-22} = sz8_64;
+  let Inst{21-10} = 0b110110001110;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Zd;
+}
+
+multiclass sve_varsimd_int_dup_r<string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_dup_r<0b10, asm, ZPR32, nxv4i32, GPR64sp, op>;
+
+  def : SVE_1_Op_Pat<nxv4i32, op, i64, !cast<Instruction>(NAME # _S)>;
+}
+
 class sve_int_perm_dup_i<bits<5> tsz, Operand immtype, string asm,
                          ZPRRegOp zprty>
 : I<(outs zprty:$Zd), (ins zprty:$Zn, immtype:$idx),
@@ -1423,6 +1470,234 @@ multiclass sve_int_perm_unpk<bits<2> opc, string asm, SDPatternOperator op> {
   def : SVE_1_Op_Pat<nxv2i64, op, nxv4i32, !cast<Instruction>(NAME # _D)>;
 }
 
+class sve_varsimd_unpack<bit opc, bits<2> sz8_64, string asm, ZPRRegOp zprty>
+: I<(outs zprty:$Zd), (ins GPR32sp:$Rn),
+  asm, "\t$Zd, $Rn",
+  "", []>, Sched<[]> {
+  bits<5> Rn;
+  bits<5> Zd;
+  let Inst{31-24} = 0b00000101;
+  let Inst{23-22} = sz8_64;
+  let Inst{21-19} = 0b100;
+  let Inst{18} = opc;
+  let Inst{17-10} = 0b10001110;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Zd;
+
+  let hasSideEffects = 1;
+  let Defs = [NUM];
+}
+
+multiclass sve_varsimd_unpack<string asm, SDPatternOperator op> {
+  def _B : sve_varsimd_unpack<0b0, 0b00, asm, ZPR8>;
+  def _H : sve_varsimd_unpack<0b0, 0b01, asm, ZPR16>;
+  def _S : sve_varsimd_unpack<0b0, 0b10, asm, ZPR32>;
+  def _D : sve_varsimd_unpack<0b0, 0b11, asm, ZPR64>;
+
+  def : SVE_1_Op_Pat<nxv16i8, op, i32, !cast<Instruction>(NAME # _B)>;
+  def : SVE_1_Op_Pat<nxv8i16, op, i32, !cast<Instruction>(NAME # _H)>;
+  def : SVE_1_Op_Pat<nxv4i32, op, i32, !cast<Instruction>(NAME # _S)>;
+  def : SVE_1_Op_Pat<nxv2i64, op, i32, !cast<Instruction>(NAME # _D)>;
+}
+
+multiclass sve_varsimd_vunpack_unpred<string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_unpack<0b1, 0b10, asm, ZPR32>;
+
+  def : Pat<(nxv4i32 (op (nxv4i1 (SVEAllActive)), i32:$Op1)),
+            (!cast<Instruction>(NAME # _S) $Op1)>;
+}
+
+class sve_varsimd_pack<bits<2> sz8_64, string asm, ZPRRegOp zprty>
+  : I<(outs GPR32sp:$Rd), (ins  PPR3bAny:$Pg, zprty:$Zn, GPR32sp:$Rm),
+      asm, "\t$Rd, $Pg, $Zn, $Rm", "", []>, Sched<[]> {
+  bits<5> Rd;
+  bits<3> Pg;
+  bits<5> Zn;
+  bits<5> Rm;
+  let Inst{31-24} = 0b00011011;
+  let Inst{23-21} = 0b001;
+  let Inst{20-19} = sz8_64;
+  let Inst{18-16} = Pg;
+  let Inst{15}    = 1;
+  let Inst{14-10} = Rm;
+  let Inst{9-5}   = Zn;
+  let Inst{4-0}   = Rd;
+
+  let hasSideEffects = 1;
+  let Defs = [FFR, NUM];
+}
+
+multiclass sve_varsimd_pack<string asm, SDPatternOperator op> {
+  def _B : sve_varsimd_pack<0b00, asm, ZPR8>;
+  def _H : sve_varsimd_pack<0b01, asm, ZPR16>;
+  def _S : sve_varsimd_pack<0b10, asm, ZPR32>;
+  def _D : sve_varsimd_pack<0b11, asm, ZPR64>;
+
+
+  def : SVE_3_Op_Pat<i32, op, nxv16i1, nxv16i8, i32, !cast<Instruction>(NAME # _B)>;
+  def : SVE_3_Op_Pat<i32, op,  nxv8i1, nxv8i16, i32, !cast<Instruction>(NAME # _H)>;
+  def : SVE_3_Op_Pat<i32, op,  nxv4i1, nxv4i32, i32, !cast<Instruction>(NAME # _S)>;
+  def : SVE_3_Op_Pat<i32, op,  nxv2i1, nxv2i64, i32, !cast<Instruction>(NAME # _D)>;
+}
+
+class sve_varsimd_vpack<string asm, SDPatternOperator op>
+  : I<(outs GPR32sp:$Rd), (ins PPRAny:$Pg, ZPR32:$Zn, GPR32sp:$Rm),
+      asm, "\t$Rd, $Pg, $Zn, $Rm", "",
+      [(set GPR32sp:$Rd, (op nxv4i1:$Pg, nxv4i32:$Zn, GPR32sp:$Rm))]
+      >, Sched<[]> {
+  bits<5> Rd;
+  bits<4> Pg;
+  bits<5> Zn;
+  bits<5> Rm;
+  let Inst{31-24} = 0b00011011;
+  let Inst{23-21} = 0b001;
+  let Inst{20} = 0b0;
+  let Inst{19-16} = Pg;
+  let Inst{15}    = 0b0;
+  let Inst{14-10} = Rm;
+  let Inst{9-5}   = Zn;
+  let Inst{4-0}   = Rd;
+
+  let hasSideEffects = 1;
+}
+
+class sve_int_varsimd_vsel<string asm, SDPatternOperator op>
+  : I<(outs ZPR32:$Zd), (ins PPRAny:$Pg, ZPR32:$Zn, ZPR32:$Zm),
+      asm, "\t$Zd, $Pg, $Zn, $Zm", "",
+      [(set nxv4i32:$Zd, (op nxv4i1:$Pg, nxv4i32:$Zn, nxv4i32:$Zm))]
+      >, Sched<[]> {
+  bits<5> Zd;
+  bits<4> Pg;
+  bits<5> Zn;
+  bits<5> Zm;
+  let Inst{31-24} = 0b00011011;
+  let Inst{23-21} = 0b001;
+  let Inst{20} = 0b0;
+  let Inst{19-16} = Pg;
+  let Inst{15}    = 0b1;
+  let Inst{14-10} = Zm;
+  let Inst{9-5}   = Zn;
+  let Inst{4-0}   = Zd;
+
+  let hasSideEffects = 1;
+}
+
+class sve_varsimd_vstore<string asm>
+  : I<(outs GPR32sp:$Rd), (ins ZPR32:$Zn, GPR64sp:$Rm, GPR64sp:$Ra),
+      asm, "\t$Rd, $Zn, $Rm, $Ra", "", []>, Sched<[]> {
+  bits<5> Rd;
+  bits<5> Zn;
+  bits<5> Rm;
+  bits<5> Ra;
+  let Inst{31-24} = 0b00011011;
+  let Inst{23-21} = 0b101;
+  let Inst{20-16} = Ra;
+  let Inst{15}    = 0b1;
+  let Inst{14-10} = Rm;
+  let Inst{9-5}   = Zn;
+  let Inst{4-0}   = Rd;
+
+  let hasSideEffects = 1;
+}
+
+multiclass sve_varsimd_vstore<string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_vstore<asm>;
+  def : SVE_3_Op_Pat<i32, op, nxv4i32, i64, i64, !cast<Instruction>(NAME # _S)>;
+}
+
+class RStream3Op<bits<3> opc, RegisterClass bwtype, string asm, SDPatternOperator OpNode>
+  : I<(outs GPR32sp:$Rd), (ins GPR64sp:$Rn, bwtype:$Rm, GPR64sp:$Ra),
+      asm, "\t$Rd, $Rn, $Rm, $Ra", "",
+      [(set GPR32sp:$Rd, (OpNode GPR64sp:$Rn, bwtype:$Rm, GPR64sp:$Ra))]
+      >, Sched<[]> {
+  bits<5> Rd;
+  bits<5> Rn;
+  bits<5> Rm;
+  bits<5> Ra;
+  let Inst{31-24} = 0b00011011;
+  // 0b010 0b101 0b110
+  let Inst{23-21} = opc;
+  let Inst{20-16} = Ra;
+  let Inst{15}    = 0b0;
+  let Inst{14-10} = Rm;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Rd;
+
+  let hasSideEffects = 1;
+}
+
+class sve_varsimd_vload<string asm>
+  : I<(outs ZPR32:$Zd), (ins GPR64sp:$Rn, GPR64sp:$Rm),
+      asm, "\t$Zd, $Rn, $Rm", "", []>, Sched<[]> {
+  bits<5> Zd;
+  bits<5> Rn;
+  bits<5> Rm;
+  let Inst{31-21} = 0b00011010110;
+  let Inst{20-16} = Rm;
+  let Inst{15-10} = 0b001100;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Zd;
+
+  let hasSideEffects = 1;
+}
+
+multiclass sve_varsimd_vload<string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_vload<asm>;
+  def : SVE_2_Op_Pat<nxv4i32, op, i64, i64, !cast<Instruction>(NAME # _S)>;
+}
+
+class WStream2Op<bits<2> opc, RegisterClass bwtype, string asm, SDPatternOperator OpNode>
+  : I<(outs GPR32sp:$Rd), (ins GPR64sp:$Rn, bwtype:$Rm),
+      asm, "\t$Rd, $Rn, $Rm", "",
+      [(set GPR32sp:$Rd, (OpNode GPR64sp:$Rn, bwtype:$Rm))]
+      >, Sched<[]> {
+  bits<5> Rd;
+  bits<5> Rn;
+  bits<5> Rm;
+  let Inst{31-21} = 0b10011010110;
+  let Inst{20-16} = Rm;
+  let Inst{15-13} = 0b010;
+  let Inst{12-11} = opc;
+  let Inst{10}    = 0;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Rd;
+
+  let hasSideEffects = 1;
+}
+
+class CStream2Op<bits<2> opc, string asm, SDPatternOperator OpNode>
+  : I<(outs GPR32sp:$Rd), (ins GPR32sp:$Rn, GPR32sp:$Rm),
+      asm, "\t$Rd, $Rn, $Rm", "",
+      [(set GPR32sp:$Rd, (OpNode GPR32sp:$Rn, GPR32sp:$Rm))]
+      >, Sched<[]> {
+  bits<5> Rd;
+  bits<5> Rn;
+  bits<5> Rm;
+  let Inst{31-21} = 0b10011010110;
+  let Inst{20-16} = Rm;
+  let Inst{15-13} = 0b010;
+  let Inst{12-11} = opc;
+  let Inst{10}    = 0;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Rd;
+
+  let hasSideEffects = 1;
+}
+
+class EStream1Op<bits<1> opc, string asm, SDPatternOperator OpNode>
+  : I<(outs GPR64sp:$Rd), (ins GPR32sp:$Rn), asm, "\t$Rd, $Rn", "",
+      [(set GPR64sp:$Rd, (OpNode GPR32sp:$Rn))]>, Sched<[]> {
+  bits<5> Rd;
+  bits<5> Rn;
+
+  let Inst{31-11} = 0b110110101100000101001;
+  let Inst{10} = opc;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Rd;
+
+  let hasSideEffects = 1;
+}
+
 class sve_int_perm_insrs<bits<2> sz8_64, string asm, ZPRRegOp zprty,
                          RegisterClass srcRegType>
 : I<(outs zprty:$Zdn), (ins zprty:$_Zdn, srcRegType:$Rm),
@@ -1718,6 +1993,41 @@ multiclass sve_int_log_imm_bic<SDPatternOperator op> {
   def : SVE_1_Op_Imm_Log_Pat<nxv2i64, op, ZPR64, i64, SVELogicalImm64NotPat, !cast<Instruction>("AND_ZI")>;
 }
 
+class sve_varsimd_int_log_imm<bits<2> grp, bits<2> opc, string asm>
+: I<(outs ZPR32:$Zdn), (ins ZPR32:$_Zdn, logical_imm64:$imms13),
+  asm, "\t$Zdn, $_Zdn, $imms13",
+  "", []>, Sched<[]> {
+  bits<5> Zdn;
+  bits<13> imms13;
+  let Inst{31-24} = 0b00000101;
+  let Inst{23-22} = opc;
+  let Inst{21-20} = 0b00;
+  // grp: 0b01, 0b10, 0b11
+  let Inst{19-18} = grp;
+  let Inst{17-5}  = imms13;
+  let Inst{4-0}   = Zdn;
+
+  let Constraints = "$Zdn = $_Zdn";
+  let DecoderMethod = "DecodeSVELogicalImmInstruction";
+  let DestructiveInstType = DestructiveOther;
+  let ElementSize = ElementSizeNone;
+}
+
+class SVE_1_Op_Imm_Logical_All_Active<ValueType vt, ValueType pt, SDPatternOperator op,
+                                  ZPRRegOp zprty, ValueType it, ComplexPattern cpx, Instruction inst>
+  : Pat<(vt (op (pt (SVEAllActive)), (vt zprty:$Op1), (it (cpx i64:$imm)))),
+        (inst $Op1, i64:$imm)>;
+
+multiclass sve_varsimd_int_log_imm<bits<2> grp, bits<2> opc, string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_log_imm<grp, opc, asm>;
+
+  def : SVE_1_Op_Imm_Logical_All_Active<nxv4i32, nxv4i1,  op, ZPR32, i64, SVELogicalImm64Pat, !cast<Instruction>(NAME # _S)>;
+}
+
+multiclass sve_varsimd_int_log_imm_bic<SDPatternOperator op> {
+  def : SVE_1_Op_Imm_Logical_All_Active<nxv4i32, nxv4i1, op, ZPR32, i64, SVELogicalImm64NotPat, !cast<Instruction>("VAND_ZI_S")>;
+}
+
 class sve_int_dup_mask_imm<string asm>
 : I<(outs ZPR64:$Zd), (ins logical_imm64:$imms),
   asm, "\t$Zd, $imms",
@@ -1788,6 +2098,31 @@ multiclass sve_int_bin_cons_arit_0<bits<3> opc, string asm, SDPatternOperator op
   def : SVE_2_Op_Pat<nxv4i32, op, nxv4i32, nxv4i32, !cast<Instruction>(NAME # _S)>;
   def : SVE_2_Op_Pat<nxv2i64, op, nxv2i64, nxv2i64, !cast<Instruction>(NAME # _D)>;
 }
+
+class sve_varsimd_int_bin_arit_0<bits<1> opc, string asm>
+: I<(outs ZPR32:$Zd), (ins ZPR32:$Zn, ZPR32:$Zm),
+  asm, "\t$Zd, $Zn, $Zm",
+  "", []>, Sched<[]> {
+  bits<5> Zd;
+  bits<5> Zm;
+  bits<5> Zn;
+  let Inst{31-24} = 0b00000100;
+  let Inst{23-22} = 0b10;
+  let Inst{21}    = 0b1;
+  let Inst{20-16} = Zm;
+  let Inst{15-11} = 0b00001;
+  let Inst{10}    = opc;
+  let Inst{9-5}   = Zn;
+  let Inst{4-0}   = Zd;
+}
+
+multiclass sve_varsimd_int_bin_arit_0<bits<1> opc, string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_bin_arit_0<opc, asm>;
+
+  def : SVE_2_Op_Pred_All_Active<nxv4i32, op, nxv4i1, nxv4i32, nxv4i32, !cast<Instruction>(NAME # _S)>;
+}
+
+
 
 //===----------------------------------------------------------------------===//
 // SVE Floating Point Arithmetic - Predicated Group
@@ -2753,6 +3088,13 @@ multiclass sve_int_bin_pred_log<bits<3> opc, string asm, SDPatternOperator op> {
   def : SVE_3_Op_Pat<nxv2i64, op, nxv2i1, nxv2i64, nxv2i64, !cast<Instruction>(NAME # _D)>;
 }
 
+multiclass sve_varsimd_int_bin_pred_log<bits<3> opc, string asm, SDPatternOperator op> {
+  // opc: 0b100 0b101 0b110 0b111
+  def _S : sve_int_bin_pred_arit_log<0b10, 0b11, opc, asm, ZPR32>;
+
+  def : SVE_3_Op_Pat<nxv4i32, op, nxv4i1, nxv4i32, nxv4i32, !cast<Instruction>(NAME # _S)>;
+}
+
 multiclass sve_int_bin_pred_arit_0<bits<3> opc, string asm, string Ps,
                                    SDPatternOperator op,
                                    DestructiveInstTypeEnum flags,
@@ -2772,6 +3114,19 @@ multiclass sve_int_bin_pred_arit_0<bits<3> opc, string asm, string Ps,
   def : SVE_3_Op_Pat<nxv8i16, op, nxv8i1, nxv8i16, nxv8i16, !cast<Instruction>(NAME # _H)>;
   def : SVE_3_Op_Pat<nxv4i32, op, nxv4i1, nxv4i32, nxv4i32, !cast<Instruction>(NAME # _S)>;
   def : SVE_3_Op_Pat<nxv2i64, op, nxv2i1, nxv2i64, nxv2i64, !cast<Instruction>(NAME # _D)>;
+}
+
+multiclass sve_varsimd_int_bin_pred_arit_0<bits<3> opc, string asm, SDPatternOperator op> {
+  // opc 0b010 0b100 0b101 0b110 0b111
+  def _S : sve_int_bin_pred_arit_log<0b10, 0b00, opc, asm, ZPR32>;
+
+  def : SVE_3_Op_Pat<nxv4i32, op, nxv4i1, nxv4i32, nxv4i32, !cast<Instruction>(NAME # _S)>;
+}
+
+multiclass sve_varsimd_int_bin_pred_arit_1<bits<3> opc, string asm, SDPatternOperator op> {
+  def _S : sve_int_bin_pred_arit_log<0b10, 0b01, opc, asm, ZPR32>;
+
+  def : SVE_3_Op_Pat<nxv4i32, op, nxv4i1, nxv4i32, nxv4i32, !cast<Instruction>(NAME # _S)>;
 }
 
 multiclass sve_int_bin_pred_arit_1<bits<3> opc, string asm, string Ps,
@@ -3291,6 +3646,30 @@ multiclass sve2_int_mul_single<bits<3> opc, string asm, SDPatternOperator op> {
 
   def : SVE_2_Op_Pat<nxv16i8, op, nxv16i8, nxv16i8, !cast<Instruction>(NAME # _B)>;
 }
+
+class sve_varsimd_int_mul<bits<1> opc, string asm>
+: I<(outs ZPR32:$Zd), (ins ZPR32:$Zn, ZPR32:$Zm),
+  asm, "\t$Zd, $Zn, $Zm", "", []>, Sched<[]> {
+  bits<5> Zd;
+  bits<5> Zm;
+  bits<5> Zn;
+  let Inst{31-24} = 0b00000100;
+  let Inst{23}    = 0b1;
+  let Inst{22}    = opc;
+  let Inst{21}    = 0b1;
+  let Inst{20-16} = Zm;
+  let Inst{15-12} = 0b0110;
+  let Inst{11-10} = 0b01;
+  let Inst{9-5}   = Zn;
+  let Inst{4-0}   = Zd;
+}
+
+multiclass sve_varsimd_int_mul<bits<1> opc, string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_mul<opc, asm>;
+
+  def : SVE_2_Op_Pred_All_Active<nxv4i32, op, nxv4i1, nxv4i32, nxv4i32, !cast<Instruction>(NAME # _S)>;
+}
+
 
 //===----------------------------------------------------------------------===//
 // SVE2 Integer Multiply - Indexed Group
@@ -4210,6 +4589,220 @@ multiclass sve_int_un_pred_arit_1<bits<3> opc, string asm,
   defm : SVE_1_Op_PassthruUndef_Pat<nxv2i64, op, nxv2i1,  nxv2i64, !cast<Pseudo>(NAME # _UNDEF_D)>;
 }
 
+class sve_varsimd_unary_pred_merge<bits<2> sz8_64, bits<2> opc, string asm>
+: I<(outs ZPR32:$Zd), (ins ZPR32:$_Zd, PPR3bAny:$Pg, ZPR32:$Zn),
+  asm, "\t$Zd, $Pg/m, $Zn",
+  "",
+  []>, Sched<[]> {
+  bits<3> Pg;
+  bits<5> Zd;
+  bits<5> Zn;
+  let Inst{31-24} = 0b00000100;
+  let Inst{23-22} = sz8_64;
+  let Inst{21-18} = 0b0000;
+  let Inst{17-16} = opc;
+  let Inst{15-13} = 0b101;
+  let Inst{12-10} = Pg;
+  let Inst{9-5}   = Zn;
+  let Inst{4-0}   = Zd;
+
+  let Constraints = "$Zd = $_Zd";
+  let DestructiveInstType = DestructiveUnaryPassthru;
+  let ElementSize = ZPR32.ElementSize;
+}
+
+class sve_varsimd_unary_pred_zero<bits<2> sz8_64, bits<2> opc, string asm,
+                                  ZPRRegOp zprty>
+: I<(outs ZPR32:$Zd), (ins PPR3bAny:$Pg, zprty:$Zn),
+  asm, "\t$Zd, $Pg/z, $Zn",
+  "",
+  []>, Sched<[]> {
+  bits<3> Pg;
+  bits<5> Zd;
+  bits<5> Zn;
+  let Inst{31-24} = 0b00000100;
+  let Inst{23-22} = sz8_64;
+  let Inst{21-18} = 0b0000;
+  let Inst{17-16} = opc;
+  let Inst{15-13} = 0b101;
+  let Inst{12-10} = Pg;
+  let Inst{9-5}   = Zn;
+  let Inst{4-0}   = Zd;
+
+  let DestructiveInstType = DestructiveOther;
+  let ElementSize = zprty.ElementSize;
+}
+
+class sve_varsimd_unary_pred_reg<bits<2> sz8_64, bits<2> opc, string asm>
+: I<(outs ZPR32:$Zd), (ins PPR3bAny:$Pg, GPR32sp:$Rn),
+  asm, "\t$Zd, $Pg/z, $Rn",
+  "",
+  []>, Sched<[]> {
+  bits<3> Pg;
+  bits<5> Zd;
+  bits<5> Rn;
+  let Inst{31-24} = 0b00000100;
+  let Inst{23-22} = sz8_64;
+  let Inst{21-18} = 0b0000;
+  let Inst{17-16} = opc;
+  let Inst{15-13} = 0b101;
+  let Inst{12-10} = Pg;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Zd;
+
+  let DestructiveInstType = DestructiveOther;
+}
+
+multiclass sve_varsimd_int_un_pred_arit0<bits<2> opc, string asm,
+                                         SDPatternOperator op> {
+  def _S : sve_varsimd_unary_pred_merge<0b10, opc, asm>;
+
+  def : SVE_Op1_Passthru_Pat<nxv4i32, op, nxv4i1,  nxv4i32, !cast<Instruction>(NAME # _S)>;
+  def : SVE_Op1_PassthruUndef_Pat<nxv4i32, op, nxv4i1,  nxv4i32, !cast<Instruction>(NAME # _S)>;
+}
+
+multiclass sve_varsimd_int_un_pred_arit1<bits<2> opc, string asm,
+                                         SDPatternOperator op> {
+  def _S : sve_varsimd_unary_pred_zero<0b10, opc, asm, ZPR32>;
+
+  def : SVE_2_Op_Pat<nxv4i32, op, nxv4i1, nxv4i32, !cast<Instruction>(NAME # _S)>;
+}
+
+multiclass sve_varsimd_int_un_pred_arit2<bits<2> opc, string asm,
+                                         SDPatternOperator op> {
+  def _S : sve_varsimd_unary_pred_reg<0b10, opc, asm>;
+
+  def : SVE_2_Op_Pat<nxv4i32, op, nxv4i1, i32, !cast<Instruction>(NAME # _S)>;
+}
+
+multiclass sve_varsimd_int_un_pred_arit3<bits<2> opc, string asm,
+                                  SDPatternOperator op> {
+  def _B : sve_varsimd_unary_pred_zero<0b00, opc, asm, ZPR8>;
+  def _H : sve_varsimd_unary_pred_zero<0b01, opc, asm, ZPR16>;
+  def _S : sve_varsimd_unary_pred_zero<0b10, opc, asm, ZPR32>;
+  def _D : sve_varsimd_unary_pred_zero<0b11, opc, asm, ZPR64>;
+
+  def : SVE_2_Op_Pat<nxv4i32, op, nxv16i1, nxv16i8, !cast<Instruction>(NAME # _B)>;
+  def : SVE_2_Op_Pat<nxv4i32, op, nxv8i1,  nxv8i16, !cast<Instruction>(NAME # _H)>;
+  def : SVE_2_Op_Pat<nxv4i32, op, nxv4i1,  nxv4i32, !cast<Instruction>(NAME # _S)>;
+  def : SVE_2_Op_Pat<nxv4i32, op, nxv2i1,  nxv2i64, !cast<Instruction>(NAME # _D)>;
+}
+
+class sve_varsimd_int_cpy_imm<bit opc, string asm>
+: I<(outs ZPR32:$Zd), (ins ZPR32:$_Zd, PPR3bAny:$Pg, vcpy_imm8_opt_lsl_i64:$imm),
+  asm, "\t$Zd, $Pg/m, $imm",
+  "",
+  []>, Sched<[]> {
+  bits<3> Pg;
+  bits<5> Zd;
+  bits<9> imm;
+  let Inst{31-24} = 0b00000100;
+  let Inst{23} = opc;
+  let Inst{22} = imm{8};
+  let Inst{21-19} = 0b001;
+  let Inst{18-16} = Pg;
+  let Inst{15-13} = 0b101;
+  let Inst{12-5} =  imm{7-0};
+  let Inst{4-0}   = Zd;
+
+  let Constraints = "$Zd = $_Zd";
+  let DestructiveInstType = DestructiveUnaryPassthru;
+  let ElementSize = ZPR32.ElementSize;
+}
+
+class sve_varsimd_int_cpz_imm<bit opc, string asm>
+: I<(outs ZPR32:$Zd), (ins PPR3bAny:$Pg, vcpy_imm8_opt_lsl_i64:$imm),
+  asm, "\t$Zd, $Pg/z, $imm",
+  "",
+  []>, Sched<[]> {
+  bits<5> Zd;
+  bits<3> Pg;
+  bits<9> imm;
+  let Inst{31-24} = 0b00000100;
+  let Inst{23} = opc;
+  let Inst{22} = imm{8};
+  let Inst{21-19} = 0b001;
+  let Inst{18-16} = Pg;
+  let Inst{15-13} = 0b101;
+  let Inst{12-5} =  imm{7-0};
+  let Inst{4-0}   = Zd;
+
+  let DestructiveInstType = DestructiveUnaryPassthru;
+  let ElementSize = ZPR32.ElementSize;
+}
+
+
+multiclass sve_varsimd_int_cpy_imm<string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_cpy_imm<0b0, asm>;
+
+  def : Pat<(nxv4i32 (op nxv4i32:$Op1, nxv4i1:$Op2, (i64 (SVE8BitLslImm64 i32:$imm, i32:$shift)))),
+        (!cast<Instruction>(NAME # _S) $Op1, $Op2, i32:$imm, i32:$shift)>;
+}
+
+multiclass sve_varsimd_int_cpz_imm<string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_cpz_imm<0b1, asm>;
+
+  def : Pat<(nxv4i32 (op nxv4i1:$Op1, (i64 (SVE8BitLslImm64 i32:$imm, i32:$shift)))),
+        (!cast<Instruction>(NAME # _S) $Op1, i32:$imm, i32:$shift)>;
+}
+
+class sve_varsimd_int_cpy_r<bits<2> sz8_64, bits<2> opc, string asm>
+: I<(outs ZPR32:$Zd), (ins ZPR32:$_Zd, PPR3bAny:$Pg, GPR64sp:$Rn),
+  asm, "\t$Zd, $Pg/m, $Rn",
+  "",
+  []>, Sched<[]> {
+  bits<3> Pg;
+  bits<5> Zd;
+  bits<5> Rn;
+  let Inst{31-24} = 0b00000100;
+  let Inst{23-22} = sz8_64;
+  let Inst{21-18} = 0b0001;
+  let Inst{17-16} = opc;
+  let Inst{15-13} = 0b101;
+  let Inst{12-10} = Pg;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Zd;
+
+  let Constraints = "$Zd = $_Zd";
+  let DestructiveInstType = DestructiveUnaryPassthru;
+  let ElementSize = ZPR32.ElementSize;
+}
+
+class sve_varsimd_int_cpz_r<bits<2> sz8_64, bits<2> opc, string asm>
+: I<(outs ZPR32:$Zd), (ins PPR3bAny:$Pg, GPR64sp:$Rn),
+  asm, "\t$Zd, $Pg/z, $Rn",
+  "",
+  []>, Sched<[]> {
+  bits<3> Pg;
+  bits<5> Zd;
+  bits<5> Rn;
+  let Inst{31-24} = 0b00000100;
+  let Inst{23-22} = sz8_64;
+  let Inst{21-18} = 0b0001;
+  let Inst{17-16} = opc;
+  let Inst{15-13} = 0b101;
+  let Inst{12-10} = Pg;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Zd;
+
+  let DestructiveInstType = DestructiveUnaryPassthru;
+  let ElementSize = ZPR32.ElementSize;
+}
+
+multiclass sve_varsimd_int_cpy_r<bits<2> opc, string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_cpy_r<0b10, opc, asm>;
+
+  def : Pat<(nxv4i32 (op nxv4i32:$passthru, nxv4i1:$pg, i64:$splat)),
+            (!cast<Instruction>(NAME # _S) $passthru, $pg, $splat)>;
+}
+
+multiclass sve_varsimd_int_cpz_r<bits<2> opc, string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_cpz_r<0b10, opc, asm>;
+
+  def : Pat<(nxv4i32 (op nxv4i1:$pg, i64:$splat)),
+            (!cast<Instruction>(NAME # _S) $pg, $splat)>;
+}
+
 multiclass sve_int_un_pred_arit_1_fp<bits<3> opc, string asm, SDPatternOperator op> {
   def _H : sve_int_un_pred_arit<0b01, { opc, 0b1 }, asm, ZPR16>,
            SVEPseudo2Instr<NAME # _H, 1>;
@@ -4280,6 +4873,32 @@ multiclass sve_int_dup_imm<string asm> {
   def : InstAlias<"fmov $Zd, #0.0",
                   (!cast<Instruction>(NAME # _D) ZPR64:$Zd, 0, 0), 1>;
 }
+
+class sve_varsimd_int_dup_imm<bits<2> sz8_64, string asm,
+                      ZPRRegOp zprty, Operand immtype>
+: I<(outs zprty:$Zd), (ins immtype:$imm),
+  asm, "\t$Zd, $imm",
+  "",
+  []>, Sched<[]> {
+  bits<5> Zd;
+  bits<9> imm;
+  let Inst{31-24} = 0b00100101;
+  let Inst{23-22} = sz8_64;
+  let Inst{21-14} = 0b11101011;
+  let Inst{13}    = imm{8};   // sh
+  let Inst{12-5}  = imm{7-0}; // imm8
+  let Inst{4-0}   = Zd;
+
+  let isReMaterializable = 1;
+}
+
+multiclass sve_varsimd_int_dup_imm<string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_dup_imm<0b10, asm, ZPR32, vcpy_imm8_opt_lsl_i64>;
+
+  def : Pat<(nxv4i32 (op (i64 (SVE8BitLslImm64 i32:$a, i32:$b)) )),
+            (!cast<Instruction>(NAME # _S) $a, $b)>;
+}
+
 
 class sve_int_dup_fpimm<bits<2> sz8_64, Operand fpimmtype,
                         string asm, ZPRRegOp zprty>
@@ -4378,6 +4997,58 @@ class sve_int_arith_imm<bits<2> sz8_64, bits<6> opc, string asm,
   let ElementSize = ElementSizeNone;
 }
 
+class sve_varsimd_int_addsub_imm<bits<2> opc, string asm>
+: I<(outs ZPR32:$Zdn), (ins ZPR32:$_Zdn, addsub_imm8_opt_lsl_i32:$imm),
+  asm, "\t$Zdn, $_Zdn, $imm", "", []>, Sched<[]> {
+  bits<5> Zdn;
+  bits<9> imm;
+  let Inst{31-24} = 0b00100101;
+  let Inst{23-22} = 0b10;
+  let Inst{21-19} = 0b101;
+  let Inst{18}    = 0b1;
+  let Inst{17-16} = opc;
+  let Inst{15-14} = 0b11;
+  let Inst{13}    = imm{8};
+  let Inst{12-5}  = imm{7-0};
+  let Inst{4-0}   = Zdn;
+
+  let Constraints = "$Zdn = $_Zdn";
+  let DestructiveInstType = DestructiveOther;
+  let ElementSize = ElementSizeNone;
+}
+
+multiclass sve_varsimd_int_addsub_imm<bits<2> opc, string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_addsub_imm<opc, asm>;
+
+  def : SVE_1_Op_Imm_OptLsl_All_Active<nxv4i32, nxv4i1, op, ZPR32, i32, SVEAddSubImm32Pat, !cast<Instruction>(NAME # _S)>;
+}
+
+class sve_varsimd_int_maxmin_imm<bits<2> opc, string asm>
+: I<(outs ZPR32:$Zdn), (ins ZPR32:$_Zdn, simm8:$imm),
+  asm, "\t$Zdn, $_Zdn, $imm", "", []>, Sched<[]> {
+  bits<5> Zdn;
+  bits<8> imm;
+  let Inst{31-24} = 0b00100101;
+  let Inst{23-22} = 0b10;
+  let Inst{21-19} = 0b101;
+  let Inst{18}    = 0b0;
+  let Inst{17-16} = opc;
+  let Inst{15-14} = 0b11;
+  let Inst{13}    = 1;
+  let Inst{12-5}  = imm;
+  let Inst{4-0}   = Zdn;
+
+  let Constraints = "$Zdn = $_Zdn";
+  let DestructiveInstType = DestructiveOther;
+  let ElementSize = ElementSizeNone;
+}
+
+multiclass sve_varsimd_int_maxmin_imm<bits<2> opc, string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_maxmin_imm<opc, asm>;
+
+  def : SVE_1_Op_Imm_Arith_All_Active<nxv4i32, nxv4i1,  op, ZPR32, i32, SVEArithSImmPat32, !cast<Instruction>(NAME # _S)>;
+}
+
 multiclass sve_int_arith_imm1<bits<2> opc, string asm, SDPatternOperator op> {
   def _B : sve_int_arith_imm<0b00, { 0b1010, opc }, asm, ZPR8, simm8>;
   def _H : sve_int_arith_imm<0b01, { 0b1010, opc }, asm, ZPR16, simm8>;
@@ -4449,6 +5120,118 @@ multiclass sve_int_bin_cons_log<bits<2> opc, string asm, SDPatternOperator op> {
                   (!cast<Instruction>(NAME) ZPR16:$Zd, ZPR16:$Zn, ZPR16:$Zm), 1>;
   def : InstAlias<asm # "\t$Zd, $Zn, $Zm",
                   (!cast<Instruction>(NAME) ZPR32:$Zd, ZPR32:$Zn, ZPR32:$Zm), 1>;
+}
+
+class sve_varsimd_index_ii<string asm>
+: I<(outs ZPR32:$Zd), (ins simm5_32b:$Imm1, simm5_32b:$Imm2),
+  asm, "\t$Zd, $Imm1, $Imm2",
+  "",
+  []>, Sched<[]> {
+  bits<5> Zd;
+  bits<5> Imm1;
+  bits<5> Imm2;
+  let Inst{31-21} = 0b00000100001;
+  let Inst{20-16} = Imm2;
+  let Inst{15-10} = 0b001001;
+  let Inst{9-5}   = Imm1;
+  let Inst{4-0}   = Zd;
+}
+
+class sve_varsimd_index_ir<string asm>
+: I<(outs ZPR32:$Zd), (ins simm5_32b:$Imm1, GPR32sp:$Rn),
+  asm, "\t$Zd, $Imm1, $Rn",
+  "",
+  []>, Sched<[]> {
+  bits<5> Zd;
+  bits<5> Imm1;
+  bits<5> Rn;
+  let Inst{31-21} = 0b00000100011;
+  let Inst{20-16} = Rn;
+  let Inst{15-10} = 0b001001;
+  let Inst{9-5}   = Imm1;
+  let Inst{4-0}   = Zd;
+}
+
+class sve_varsimd_index_ri<string asm>
+: I<(outs ZPR32:$Zd), (ins  GPR32sp:$Rn, simm5_32b:$Imm1),
+  asm, "\t$Zd, $Rn, $Imm1",
+  "",
+  []>, Sched<[]> {
+  bits<5> Zd;
+  bits<5> Imm1;
+  bits<5> Rn;
+  let Inst{31-21} = 0b00000100101;
+  let Inst{20-16} = Imm1;
+  let Inst{15-10} = 0b001001;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Zd;
+}
+
+class sve_varsimd_index_rr<string asm>
+: I<(outs ZPR32:$Zd), (ins GPR32sp:$Rn, GPR32sp:$Rm),
+  asm, "\t$Zd, $Rn, $Rm",
+  "",
+  []>, Sched<[]> {
+  bits<5> Zd;
+  bits<5> Rm;
+  bits<5> Rn;
+  let Inst{31-21} = 0b00000100111;
+  let Inst{20-16} = Rm;
+  let Inst{15-10} = 0b001001;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Zd;
+}
+
+multiclass sve_varsimd_index_ii<string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_index_ii<asm>;
+
+  def : Pat<(nxv4i32 (op simm5_32b:$imm1, simm5_32b:$imm2)),
+            (!cast<Instruction>(NAME # _S) simm5_32b:$imm1, simm5_32b:$imm2)>;
+}
+
+multiclass sve_varsimd_index_ir<string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_index_ir<asm>;
+
+  def : Pat<(nxv4i32 (op simm5_32b:$imm1, i32:$Op2)),
+            (!cast<Instruction>(NAME # _S) simm5_32b:$imm1, i32:$Op2)>;
+}
+
+multiclass sve_varsimd_index_ri<string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_index_ri<asm>;
+
+  def : Pat<(nxv4i32 (op i32:$Op1, simm5_32b:$imm2)),
+            (!cast<Instruction>(NAME # _S) i32:$Op1, simm5_32b:$imm2)>;
+}
+
+multiclass sve_varsimd_index_rr<string asm, SDPatternOperator op> {
+  def _S  : sve_varsimd_index_rr<asm>;
+
+  def : Pat<(nxv4i32 (op i32:$Op1, i32:$Op2)),
+            (!cast<Instruction>(NAME # _S) i32:$Op1, i32:$Op2)>;
+}
+
+class sve_varsimd_int_bin_log<bits<2> grp, bits<2> opc, string asm>
+: I<(outs ZPR32:$Zd), (ins ZPR32:$Zn, ZPR32:$Zm),
+  asm, "\t$Zd, $Zn, $Zm",
+  "",
+  []>, Sched<[]> {
+  bits<5> Zd;
+  bits<5> Zm;
+  bits<5> Zn;
+  let Inst{31-24} = 0b00000100;
+  let Inst{23-22} = opc;
+  let Inst{21}    = 0b1;
+  let Inst{20-16} = Zm;
+  let Inst{15-12} = 0b0010;
+  let Inst{11-10} = grp;
+  let Inst{9-5}   = Zn;
+  let Inst{4-0}   = Zd;
+}
+
+multiclass sve_varsimd_int_bin_log<bits<2> grp, bits<2> opc, string asm, SDPatternOperator op> {
+  def NAME : sve_varsimd_int_bin_log<grp, opc, asm>;
+
+  def : SVE_2_Op_Pred_All_Active<nxv4i32, op, nxv4i1, nxv4i32, nxv4i32, !cast<Instruction>(NAME)>;
 }
 
 class sve2_int_bitwise_ternary_op_d<bits<3> opc, string asm>
@@ -4739,6 +5522,64 @@ multiclass sve_int_cmp_1_wide<bits<3> opc, string asm, SDPatternOperator op> {
   def : SVE_3_Op_Pat<nxv4i1,  op, nxv4i1,  nxv4i32, nxv2i64, !cast<Instruction>(NAME # _S)>;
 }
 
+class sve_varsimd_int_cmp<bits<2> opc, string asm>
+: I<(outs PPR32:$Pd), (ins PPR3bAny:$Pg, ZPR32:$Zn, ZPR32:$Zm),
+  asm, "\t$Pd, $Pg/z, $Zn, $Zm",
+  "",
+  []>, Sched<[]> {
+  bits<4> Pd;
+  bits<3> Pg;
+  bits<5> Zn;
+  bits<5> Zm;
+  let Inst{31-24} = 0b00100101;
+  let Inst{23-22} = opc;
+  let Inst{21}    = 0b0;
+  let Inst{20-16} = Zm;
+  let Inst{15-13} = 0b101;
+  let Inst{12-10} = Pg;
+  let Inst{9-5}   = Zn;
+  let Inst{4}     = 0b0;
+  let Inst{3-0}   = Pd;
+
+  let Defs = [NUM];
+  let ElementSize = ZPR32.ElementSize;
+}
+
+multiclass sve_varsimd_int_cmp<bits<2> opc, string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_cmp<opc, asm>;
+
+  def : SVE_3_Op_Pat<nxv4i1,  op, nxv4i1,  nxv4i32, nxv4i32, !cast<Instruction>(NAME # _S)>;
+}
+
+class sve_varsimd_int_cmp_imm<bits<2> opc, string asm>
+: I<(outs PPR32:$Pd), (ins PPR3bAny:$Pg, ZPR32:$Zn, simm5_32b:$imm5),
+  asm, "\t$Pd, $Pg/z, $Zn, $imm5",
+  "",
+  []>, Sched<[]> {
+  bits<4> Pd;
+  bits<3> Pg;
+  bits<5> Zn;
+  bits<5> imm5;
+  let Inst{31-24} = 0b00100101;
+  let Inst{23-22} = opc;
+  let Inst{21}    = 0b0;
+  let Inst{20-16} = imm5;
+  let Inst{15-13} = 0b101;
+  let Inst{12-10} = Pg;
+  let Inst{9-5}   = Zn;
+  let Inst{4}     = 0b1;
+  let Inst{3-0}   = Pd;
+
+  let Defs = [NUM];
+  let ElementSize = ZPR32.ElementSize;
+}
+
+multiclass sve_varsimd_int_cmp_imm<bits<2> opc, string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_cmp_imm<opc, asm>;
+
+  def : Pat<(nxv4i1 (op (nxv4i1 PPR_3b:$Pg), (nxv4i32 ZPR:$Zs1), (nxv4i32 (AArch64dup (simm5_32b:$imm))))),
+            (!cast<Instruction>(NAME # _S) $Pg, $Zs1, simm5_32b:$imm)>;
+}
 
 //===----------------------------------------------------------------------===//
 // SVE Integer Compare - Signed Immediate Group
@@ -5458,6 +6299,42 @@ multiclass sve_int_bin_pred_shift_imm_right_zeroing_bhsd<SDPatternOperator op = 
   def : SVE_3_Op_Pat_Shift_Imm_SelZero<nxv2i64, op, nxv2i1, nxv2i64, tvecshiftR64, !cast<Pseudo>(NAME # _ZERO_D)>;
 }
 
+class sve_varsimd_int_bin_pred_shift_imm<bits<2> opc, string asm, Operand immtype>
+: I<(outs ZPR32:$Zdn), (ins PPR3bAny:$Pg, ZPR32:$_Zdn, immtype:$imm),
+  asm, "\t$Zdn, $Pg/m, $_Zdn, $imm",
+  "",
+  []>, Sched<[]> {
+  bits<3> Pg;
+  bits<5> Zdn;
+  bits<5> imm;
+  let Inst{31-24} = 0b00000100;
+  let Inst{23-18} = 0b010010;
+  let Inst{17-16} = opc;
+  let Inst{15-13} = 0b100;
+  let Inst{12-10} = Pg;
+  let Inst{9-5}   = imm;
+  let Inst{4-0}   = Zdn;
+
+  let Constraints = "$Zdn = $_Zdn";
+  let DestructiveInstType = DestructiveBinaryImm;
+  let ElementSize = ZPR32.ElementSize;
+}
+
+multiclass sve_varsimd_int_bin_pred_rshift_imm<bits<2> opc, string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_bin_pred_shift_imm<opc, asm, vecshiftR32>;
+
+  // def : SVE_3_Op_Imm_Pat<nxv4i32, op, nxv4i1,  nxv4i32, i32, tvecshiftR32, !cast<Instruction>(NAME # _S)>;
+  def : SVE_Shift_DupImm_Pred_Pat<nxv4i32, op, nxv4i1,  i32, SVEShiftImmR32, !cast<Instruction>(NAME # _S)>;
+}
+
+multiclass sve_varsimd_int_bin_pred_lshift_imm<bits<2> opc, string asm,
+                                              SDPatternOperator op> {
+  def _S : sve_varsimd_int_bin_pred_shift_imm<opc, asm, vecshiftL32>;
+
+  // def : SVE_3_Op_Imm_Pat<nxv4i32, op, nxv4i1,  nxv4i32, i32, tvecshiftL32, !cast<Instruction>(NAME # _S)>;
+  def : SVE_Shift_DupImm_Pred_Pat<nxv4i32, op, nxv4i1,  i32, SVEShiftImmL32, !cast<Instruction>(NAME # _S)>;
+}
+
 class sve_int_bin_pred_shift<bits<2> sz8_64, bit wide, bits<3> opc,
                              string asm, ZPRRegOp zprty, ZPRRegOp zprty2>
 : I<(outs zprty:$Zdn), (ins PPR3bAny:$Pg, zprty:$_Zdn, zprty2:$Zm),
@@ -5498,6 +6375,12 @@ multiclass sve_int_bin_pred_shift<bits<3> opc, string asm, string Ps,
   def : SVE_3_Op_Pat<nxv8i16, op, nxv8i1,  nxv8i16, nxv8i16, !cast<Instruction>(NAME # _H)>;
   def : SVE_3_Op_Pat<nxv4i32, op, nxv4i1,  nxv4i32, nxv4i32, !cast<Instruction>(NAME # _S)>;
   def : SVE_3_Op_Pat<nxv2i64, op, nxv2i1,  nxv2i64, nxv2i64, !cast<Instruction>(NAME # _D)>;
+}
+
+multiclass sve_varsimd_int_bin_pred_shift<bits<1> opc, string asm,
+                                          SDPatternOperator op> {
+  def _S : sve_int_bin_pred_shift<0b10, 0b0, {opc, 0b10}, asm, ZPR32, ZPR32>;
+  def : SVE_3_Op_Pat<nxv4i32, op, nxv4i1,  nxv4i32, nxv4i32, !cast<Instruction>(NAME # _S)>;
 }
 
 multiclass sve_int_bin_pred_zeroing_bhsd<SDPatternOperator op> {
@@ -5614,6 +6497,34 @@ multiclass sve_int_bin_cons_shift_imm_right<bits<2> opc, string asm,
   def : SVE_Shift_DupImm_All_Active_Pat<nxv8i16, op, nxv8i1,  i32, SVEShiftImmR16, !cast<Instruction>(NAME # _H)>;
   def : SVE_Shift_DupImm_All_Active_Pat<nxv4i32, op, nxv4i1,  i32, SVEShiftImmR32, !cast<Instruction>(NAME # _S)>;
   def : SVE_Shift_DupImm_All_Active_Pat<nxv2i64, op, nxv2i1,  i64, SVEShiftImmR64, !cast<Instruction>(NAME # _D)>;
+}
+
+class sve_varsimd_int_bin_shift_imm<bits<1> opc, string asm, Operand immtype>
+: I<(outs ZPR32:$Zd), (ins ZPR32:$Zn, immtype:$imm),
+  asm, "\t$Zd, $Zn, $imm",
+  "",
+  []>, Sched<[]> {
+  bits<5> Zd;
+  bits<5> Zn;
+  bits<5> imm;
+  let Inst{31-24} = 0b00000100;
+  let Inst{23-21} = 0b011;
+  let Inst{20-16} = imm;
+  let Inst{15-13} = 0b100;
+  let Inst{12}    = opc;
+  let Inst{11-10} = 0b10;
+  let Inst{9-5}   = Zn;
+  let Inst{4-0}   = Zd;
+}
+
+multiclass sve_varsimd_int_bin_lshift_imm<string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_bin_shift_imm<0b0, asm, vecshiftL32>;
+  def : SVE_Shift_DupImm_All_Active_Pat<nxv4i32, op, nxv4i1,  i32, SVEShiftImmL32, !cast<Instruction>(NAME # _S)>;
+}
+
+multiclass sve_varsimd_int_bin_rshift_imm<string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_bin_shift_imm<0b1, asm, vecshiftR32>;
+  def : SVE_Shift_DupImm_All_Active_Pat<nxv4i32, op, nxv4i1,  i32, SVEShiftImmR32, !cast<Instruction>(NAME # _S)>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -6215,6 +7126,21 @@ class sve_int_rdffr_unpred<string asm> : I<
   let Inst{3-0}   = Pd;
 
   let Uses = [FFR];
+}
+
+class sve_varsimd_int_vrnum<bit opc, string asm, SDPatternOperator op> : I<
+  (outs GPR32sp:$Rd), (ins),
+  asm, "\t$Rd",
+  "",
+  [(set GPR32sp:$Rd, (op))]>, Sched<[]> {
+  bits<5> Rd;
+  let Inst{31-23} = 0b001001011;
+  let Inst{22} = opc;
+  let Inst{21-5}  = 0b01100111110000000;
+  let Inst{4-0}   = Rd;
+
+  let Uses = [NUM];
+  let Defs = [NUM];
 }
 
 multiclass sve_int_rdffr_unpred<string asm, SDPatternOperator op> {
@@ -7726,6 +8652,50 @@ multiclass sve_int_bin_cons_misc_0_c_fexpa<string asm, SDPatternOperator op> {
 //===----------------------------------------------------------------------===//
 // SVE Integer Reduction Group
 //===----------------------------------------------------------------------===//
+
+class sve_varsimd_int_reduce<bits<2> opc, string asm>
+: I<(outs GPR64sp:$Rd), (ins PPR3bAny:$Pg, ZPR32:$Zn),
+  asm, "\t$Rd, $Pg, $Zn",
+  "",
+  []>, Sched<[]> {
+  bits<3> Pg;
+  bits<5> Rd;
+  bits<5> Zn;
+  let Inst{31-19} = 0b0000010011000;
+  let Inst{18-17} = opc;
+  let Inst{16-13} = 0b0001;
+  let Inst{12-10} = Pg;
+  let Inst{9-5}   = Zn;
+  let Inst{4-0}   = Rd;
+}
+
+multiclass sve_varsimd_int_reduce<bits<2> opc, string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_reduce<opc, asm>;
+
+  def : SVE_2_Op_Pat<i64, op, nxv4i1,  nxv4i32, !cast<Instruction>(NAME # _S)>;
+}
+
+class sve_varsimd_int_num<bits<1> opc, string asm>
+: I<(outs GPR32sp:$Rd), (ins PPR3bAny:$Pg, ZPR32:$Zn),
+  asm, "\t$Rd, $Pg, $Zn",
+  "",
+  []>, Sched<[]> {
+  bits<3> Pg;
+  bits<5> Rd;
+  bits<5> Zn;
+  let Inst{31-18} = 0b00000100110011;
+  let Inst{17} = opc;
+  let Inst{16-13} = 0b0001;
+  let Inst{12-10} = Pg;
+  let Inst{9-5}   = Zn;
+  let Inst{4-0}   = Rd;
+}
+
+multiclass sve_varsimd_int_num<bits<1> opc, string asm, SDPatternOperator op> {
+  def _S : sve_varsimd_int_num<opc, asm>;
+
+  def : SVE_2_Op_Pat<i32, op, nxv4i1,  nxv4i32, !cast<Instruction>(NAME # _S)>;
+}
 
 class sve_int_reduce<bits<2> sz8_32, bits<2> fmt, bits<3> opc, string asm,
                      ZPRRegOp zprty, FPRasZPROperand dstOpType>
