@@ -1483,9 +1483,6 @@ class sve_varsimd_unpack<bit opc, bits<2> sz8_64, string asm, ZPRRegOp zprty>
   let Inst{17-10} = 0b10001110;
   let Inst{9-5}   = Rn;
   let Inst{4-0}   = Zd;
-
-  let hasSideEffects = 1;
-  let Defs = [NUM];
 }
 
 multiclass sve_varsimd_unpack<string asm, SDPatternOperator op> {
@@ -1522,9 +1519,6 @@ class sve_varsimd_pack<bits<2> sz8_64, string asm, ZPRRegOp zprty>
   let Inst{14-10} = Rm;
   let Inst{9-5}   = Zn;
   let Inst{4-0}   = Rd;
-
-  let hasSideEffects = 1;
-  let Defs = [FFR, NUM];
 }
 
 multiclass sve_varsimd_pack<string asm, SDPatternOperator op> {
@@ -1557,8 +1551,6 @@ class sve_varsimd_vpack<string asm, SDPatternOperator op>
   let Inst{14-10} = Rm;
   let Inst{9-5}   = Zn;
   let Inst{4-0}   = Rd;
-
-  let hasSideEffects = 1;
 }
 
 class sve_int_varsimd_vsel<string asm, SDPatternOperator op>
@@ -1578,8 +1570,6 @@ class sve_int_varsimd_vsel<string asm, SDPatternOperator op>
   let Inst{14-10} = Zm;
   let Inst{9-5}   = Zn;
   let Inst{4-0}   = Zd;
-
-  let hasSideEffects = 1;
 }
 
 class sve_varsimd_vstore<string asm>
@@ -1596,8 +1586,6 @@ class sve_varsimd_vstore<string asm>
   let Inst{14-10} = Rm;
   let Inst{9-5}   = Zn;
   let Inst{4-0}   = Rd;
-
-  let hasSideEffects = 1;
 }
 
 multiclass sve_varsimd_vstore<string asm, SDPatternOperator op> {
@@ -1622,8 +1610,6 @@ class RStream3Op<bits<3> opc, RegisterClass bwtype, string asm, SDPatternOperato
   let Inst{14-10} = Rm;
   let Inst{9-5}   = Rn;
   let Inst{4-0}   = Rd;
-
-  let hasSideEffects = 1;
 }
 
 class sve_varsimd_vload<string asm>
@@ -1637,8 +1623,6 @@ class sve_varsimd_vload<string asm>
   let Inst{15-10} = 0b001100;
   let Inst{9-5}   = Rn;
   let Inst{4-0}   = Zd;
-
-  let hasSideEffects = 1;
 }
 
 multiclass sve_varsimd_vload<string asm, SDPatternOperator op> {
@@ -1661,8 +1645,6 @@ class WStream2Op<bits<2> opc, RegisterClass bwtype, string asm, SDPatternOperato
   let Inst{10}    = 0;
   let Inst{9-5}   = Rn;
   let Inst{4-0}   = Rd;
-
-  let hasSideEffects = 1;
 }
 
 class CStream2Op<bits<2> opc, string asm, SDPatternOperator OpNode>
@@ -1680,8 +1662,6 @@ class CStream2Op<bits<2> opc, string asm, SDPatternOperator OpNode>
   let Inst{10}    = 0;
   let Inst{9-5}   = Rn;
   let Inst{4-0}   = Rd;
-
-  let hasSideEffects = 1;
 }
 
 class EStream1Op<bits<1> opc, string asm, SDPatternOperator OpNode>
@@ -1694,8 +1674,6 @@ class EStream1Op<bits<1> opc, string asm, SDPatternOperator OpNode>
   let Inst{10} = opc;
   let Inst{9-5}   = Rn;
   let Inst{4-0}   = Rd;
-
-  let hasSideEffects = 1;
 }
 
 class sve_int_perm_insrs<bits<2> sz8_64, string asm, ZPRRegOp zprty,
@@ -5541,7 +5519,6 @@ class sve_varsimd_int_cmp<bits<2> opc, string asm>
   let Inst{4}     = 0b0;
   let Inst{3-0}   = Pd;
 
-  let Defs = [NUM];
   let ElementSize = ZPR32.ElementSize;
 }
 
@@ -5570,7 +5547,6 @@ class sve_varsimd_int_cmp_imm<bits<2> opc, string asm>
   let Inst{4}     = 0b1;
   let Inst{3-0}   = Pd;
 
-  let Defs = [NUM];
   let ElementSize = ZPR32.ElementSize;
 }
 
@@ -7139,8 +7115,6 @@ class sve_varsimd_int_vrnum<bit opc, string asm, SDPatternOperator op> : I<
   let Inst{21-5}  = 0b01100111110000000;
   let Inst{4-0}   = Rd;
 
-  let Uses = [NUM];
-  let Defs = [NUM];
 }
 
 multiclass sve_int_rdffr_unpred<string asm, SDPatternOperator op> {
